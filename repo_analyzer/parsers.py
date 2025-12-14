@@ -1,4 +1,9 @@
-"""Dependency manifest parsers for extracting package information."""
+"""Dependency manifest parsers for extracting package information.
+
+Supports Python manifest formats:
+- requirements.txt (pip)
+- pyproject.toml (Poetry, PEP 621)
+"""
 
 import re
 from typing import List, Tuple
@@ -34,6 +39,43 @@ def parse_python_requirements(file_path: str) -> List[Tuple[str, str]]:
     return dependencies
 
 
+def parse_pyproject_toml(file_path: str) -> List[Tuple[str, str]]:
+    """Parse pyproject.toml file for dependencies (Poetry format).
+
+    Returns:
+        List of (package_name, version_spec) tuples
+    """
+    dependencies = []
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    # Simple TOML parsing for dependencies section
+    # Look for [tool.poetry.dependencies] or [project.dependencies]
+    in_deps_section = False
+
+    for line in content.split('\n'):
+        line = line.strip()
+
+        # Check if entering dependencies section
+        if line in ['[tool.poetry.dependencies]', '[project.dependencies]', '[tool.poetry.dev-dependencies]']:
+            in_deps_section = True
+            continue
+        elif line.startswith('[') and in_deps_section:
+            # Exiting dependencies section
+            in_deps_section = False
+
+        # Parse dependency lines in the section
+        if in_deps_section and '=' in line and not line.startswith('#'):
+            match = re.match(r'^([a-zA-Z0-9\-_.]+)\s*=\s*["\']([^"\']+)["\']', line)
+            if match:
+                package = match.group(1)
+                version = match.group(2)
+                if package.lower() != 'python':  # Skip python version constraint
+                    dependencies.append((package, version))
+
+    return dependencies
+
+
 def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
     """Auto-detect and parse manifest file based on filename.
     
@@ -48,5 +90,7 @@ def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
     """
     if file_path.endswith('requirements.txt'):
         return parse_python_requirements(file_path)
+    elif file_path.endswith('pyproject.toml'):
+        return parse_pyproject_toml(file_path)
     else:
         raise ValueError(f"Unsupported manifest file type: {file_path}")

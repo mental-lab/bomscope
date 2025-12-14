@@ -5,7 +5,7 @@ Tests for dependency manifest parsers.
 import os
 import tempfile
 import unittest
-from repo_analyzer.parsers import parse_python_requirements, parse_manifest_file
+from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_manifest_file
 
 
 class TestPythonRequirementsParser(unittest.TestCase):
@@ -89,6 +89,52 @@ django>=4.0,<5.0
             os.unlink(f.name)
 
 
+class TestPyprojectTomlParser(unittest.TestCase):
+    """Test pyproject.toml parsing."""
+    
+    def test_parse_poetry_dependencies(self):
+        """Test parsing Poetry format pyproject.toml."""
+        content = """[tool.poetry.dependencies]
+python = "^3.9"
+flask = "^2.3.0"
+requests = ">=2.28.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.0"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_pyproject_toml(f.name)
+            
+            # Should skip python version, include others
+            self.assertEqual(len(deps), 3)
+            self.assertIn(('flask', '^2.3.0'), deps)
+            self.assertIn(('requests', '>=2.28.0'), deps)
+            self.assertIn(('pytest', '^7.0.0'), deps)
+            
+            os.unlink(f.name)
+
+    def test_parse_pep621_dependencies(self):
+        """Test parsing PEP 621 format pyproject.toml."""
+        content = """[project.dependencies]
+flask = ">=2.3.0"
+requests = "~=2.28.0"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_pyproject_toml(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('flask', '>=2.3.0'), deps)
+            self.assertIn(('requests', '~=2.28.0'), deps)
+            
+            os.unlink(f.name)
+
+
 class TestManifestFileParser(unittest.TestCase):
     """Test manifest file auto-detection."""
     
@@ -102,6 +148,22 @@ class TestManifestFileParser(unittest.TestCase):
             
             self.assertEqual(len(deps), 1)
             self.assertEqual(deps[0], ('flask', '==2.3.0'))
+            
+            os.unlink(f.name)
+    
+    def test_pyproject_toml_detection(self):
+        """Test that pyproject.toml files are detected correctly."""
+        content = """[tool.poetry.dependencies]
+flask = "^2.3.0"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='pyproject.toml', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('flask', '^2.3.0'))
             
             os.unlink(f.name)
     
