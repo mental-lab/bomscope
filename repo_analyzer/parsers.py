@@ -3,6 +3,7 @@
 Supports Python manifest formats:
 - requirements.txt (pip)
 - pyproject.toml (Poetry, PEP 621)
+- Pipfile (pipenv)
 """
 
 import re
@@ -76,6 +77,38 @@ def parse_pyproject_toml(file_path: str) -> List[Tuple[str, str]]:
     return dependencies
 
 
+def parse_pipfile(file_path: str) -> List[Tuple[str, str]]:
+    """Parse Pipfile for dependencies (Pipenv format).
+
+    Returns:
+        List of (package_name, version_spec) tuples
+    """
+    dependencies = []
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    # Parse [packages] and [dev-packages] sections
+    in_packages = False
+
+    for line in content.split('\n'):
+        line = line.strip()
+
+        if line in ['[packages]', '[dev-packages]']:
+            in_packages = True
+            continue
+        elif line.startswith('[') and in_packages:
+            in_packages = False
+
+        if in_packages and '=' in line and not line.startswith('#'):
+            match = re.match(r'^([a-zA-Z0-9\-_.]+)\s*=\s*["\']([^"\']+)["\']', line)
+            if match:
+                package = match.group(1)
+                version = match.group(2)
+                dependencies.append((package, version))
+
+    return dependencies
+
+
 def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
     """Auto-detect and parse manifest file based on filename.
     
@@ -92,5 +125,7 @@ def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
         return parse_python_requirements(file_path)
     elif file_path.endswith('pyproject.toml'):
         return parse_pyproject_toml(file_path)
+    elif file_path.endswith('Pipfile'):
+        return parse_pipfile(file_path)
     else:
         raise ValueError(f"Unsupported manifest file type: {file_path}")

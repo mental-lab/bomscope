@@ -5,7 +5,7 @@ Tests for dependency manifest parsers.
 import os
 import tempfile
 import unittest
-from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_manifest_file
+from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_pipfile, parse_manifest_file
 
 
 class TestPythonRequirementsParser(unittest.TestCase):
@@ -135,6 +135,50 @@ requests = "~=2.28.0"
             os.unlink(f.name)
 
 
+class TestPipfileParser(unittest.TestCase):
+    """Test Pipfile parsing."""
+    
+    def test_parse_pipfile_dependencies(self):
+        """Test parsing Pipfile format."""
+        content = """[packages]
+flask = "==2.3.0"
+requests = ">=2.28.0"
+
+[dev-packages]
+pytest = ">=7.0.0"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_pipfile(f.name)
+            
+            self.assertEqual(len(deps), 3)
+            self.assertIn(('flask', '==2.3.0'), deps)
+            self.assertIn(('requests', '>=2.28.0'), deps)
+            self.assertIn(('pytest', '>=7.0.0'), deps)
+            
+            os.unlink(f.name)
+
+    def test_parse_pipfile_packages_only(self):
+        """Test parsing Pipfile with only [packages] section."""
+        content = """[packages]
+numpy = "~=1.24.0"
+pandas = "*"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_pipfile(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('numpy', '~=1.24.0'), deps)
+            self.assertIn(('pandas', '*'), deps)
+            
+            os.unlink(f.name)
+
+
 class TestManifestFileParser(unittest.TestCase):
     """Test manifest file auto-detection."""
     
@@ -164,6 +208,22 @@ flask = "^2.3.0"
             
             self.assertEqual(len(deps), 1)
             self.assertEqual(deps[0], ('flask', '^2.3.0'))
+            
+            os.unlink(f.name)
+    
+    def test_pipfile_detection(self):
+        """Test that Pipfile files are detected correctly."""
+        content = """[packages]
+requests = ">=2.28.0"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='Pipfile', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('requests', '>=2.28.0'))
             
             os.unlink(f.name)
     
