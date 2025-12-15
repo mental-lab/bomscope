@@ -13,18 +13,8 @@ from typing import Optional
 from repo_analyzer.repository_analyzer import RepositoryAnalyzer
 
 
-@click.group()
+@click.command()
 @click.version_option("1.0.0")
-def cli():
-    """Ecosystems Evaluate - Multi-platform dependency analysis tool.
-
-    Analyze repositories across GitLab, GitHub, Bitbucket, and Azure DevOps
-    to extract dependency information.
-    """
-    pass
-
-
-@cli.command()
 @click.option('-p', '--platform', required=True, type=click.Choice(['gitlab', 'github', 'bitbucket', 'ado'], case_sensitive=False), help='Platform to analyze (gitlab, github, bitbucket*, ado*) *=experimental')
 @click.option('-s', '--source', required=True, help='Platform instance URL (e.g., https://gitlab.com or https://github.com)')
 @click.option('-t', '--token', required=True, help='Personal access token')
@@ -33,7 +23,7 @@ def cli():
 @click.option('-O', '--output', required=True, help='Output JSON file for analysis')
 @click.option('-w', '--workers', type=int, default=4, help='Number of parallel workers')
 @click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
-def analyze(platform: str, source: str, token: str, org: str, repo: str, output: str, workers: int, verbose: bool):
+def cli(platform: str, source: str, token: str, org: str, repo: str, output: str, workers: int, verbose: bool):
     """Analyze organization or repository for dependency inventory.
 
     This command analyzes all repositories in an organization/group or a specific repository,
