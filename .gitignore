@@ -28,7 +28,6 @@ ENV/
 
 # Results
 results/
-*.json
 
 # IDE
 .vscode/

@@ -9,8 +9,15 @@ Supports Python manifest formats:
 Supports Java manifest formats:
 - pom.xml (Maven)
 - build.gradle (Gradle)
+
+Supports JavaScript manifest formats:
+- package.json (npm)
+- package-lock.json (npm)
+- yarn.lock (Yarn)
+- pnpm-lock.yaml (pnpm)
 """
 
+import json
 import re
 import xml.etree.ElementTree as ET
 from typing import List, Tuple
@@ -199,6 +206,63 @@ def parse_gradle_build(file_path: str) -> List[Tuple[str, str]]:
     return dependencies
 
 
+def parse_javascript_lockfile(file_path: str) -> List[Tuple[str, str]]:
+    """Parse JavaScript package-lock.json, yarn.lock, or package.json file.
+
+    Returns:
+        List of (package_name, version_spec) tuples
+    """
+    dependencies = []
+    with open(file_path, 'r') as f:
+        if file_path.endswith('package-lock.json'):
+            data = json.load(f)
+            deps = data.get('dependencies', {})
+            for package, info in deps.items():
+                version = info.get('version', '')
+                dependencies.append((package, version))
+        elif file_path.endswith('package.json'):
+            data = json.load(f)
+            for dep_type in ['dependencies', 'devDependencies']:
+                deps = data.get(dep_type, {})
+                for package, version in deps.items():
+                    dependencies.append((package, version))
+        elif file_path.endswith('yarn.lock'):
+            # Parse yarn.lock format
+            content = f.read()
+            lines = content.split('\n')
+            current_package = None
+
+            for i, line in enumerate(lines):
+                # Package declaration line (starts with quote or @)
+                if line and not line.startswith(' ') and not line.startswith('#'):
+                    # Extract package name from declaration like: "package@version", "@scope/package@version"
+                    match = re.match(r'^"?(@?[^@"]+)@.*"?:', line)
+                    if match:
+                        current_package = match.group(1)
+
+                # Version line (indented with 'version')
+                elif line.strip().startswith('version ') and current_package:
+                    version_match = re.search(r'version "([^"]+)"', line)
+                    if version_match:
+                        version = version_match.group(1)
+                        dependencies.append((current_package, version))
+                        current_package = None  # Reset after finding version
+        elif file_path.endswith('pnpm-lock.yaml'):
+            # Parse pnpm-lock.yaml format (simplified YAML parsing)
+            content = f.read()
+            lines = content.split('\n')
+
+            for line in lines:
+                # Look for dependency entries like: '  /package/version:'
+                match = re.match(r'^\s+/([^/@]+)(?:@[^/]+)?/([^:]+):', line)
+                if match:
+                    package = match.group(1)
+                    version = match.group(2)
+                    dependencies.append((package, version))
+
+    return dependencies
+
+
 def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
     """Auto-detect and parse manifest file based on filename.
     
@@ -226,6 +290,10 @@ def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
         return parse_java_pom(file_path)
     elif file_path.endswith('build.gradle') or file_path.endswith('build.gradle.kts'):
         return parse_gradle_build(file_path)
+    
+    # JavaScript manifests
+    elif file_path.endswith('package.json') or file_path.endswith('package-lock.json') or file_path.endswith('yarn.lock') or file_path.endswith('pnpm-lock.yaml'):
+        return parse_javascript_lockfile(file_path)
     
     else:
         raise ValueError(f"Unsupported manifest file type: {file_path}")

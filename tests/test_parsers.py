@@ -12,6 +12,7 @@ from repo_analyzer.parsers import (
     parse_setup_py,
     parse_java_pom,
     parse_gradle_build,
+    parse_javascript_lockfile,
     parse_manifest_file
 )
 
@@ -330,6 +331,84 @@ dependencies {
             os.unlink(f.name)
 
 
+class TestJavaScriptLockfileParser(unittest.TestCase):
+    """Test JavaScript lockfile parsing."""
+    
+    def test_parse_package_json(self):
+        """Test parsing package.json dependencies."""
+        content = """{
+  "name": "test-project",
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "~4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+}"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='package.json', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_javascript_lockfile(f.name)
+            
+            self.assertEqual(len(deps), 3)
+            self.assertIn(('express', '^4.18.2'), deps)
+            self.assertIn(('lodash', '~4.17.21'), deps)
+            self.assertIn(('jest', '^29.5.0'), deps)
+            
+            os.unlink(f.name)
+
+    def test_parse_package_lock_json(self):
+        """Test parsing package-lock.json dependencies."""
+        content = """{
+  "name": "test-project",
+  "dependencies": {
+    "express": {
+      "version": "4.18.2"
+    },
+    "lodash": {
+      "version": "4.17.21"
+    }
+  }
+}"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='package-lock.json', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_javascript_lockfile(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('express', '4.18.2'), deps)
+            self.assertIn(('lodash', '4.17.21'), deps)
+            
+            os.unlink(f.name)
+
+    def test_parse_yarn_lock(self):
+        """Test parsing yarn.lock dependencies."""
+        content = """# yarn lockfile v1
+
+express@^4.18.2:
+  version "4.18.2"
+  resolved "https://registry.yarnpkg.com/express/-/express-4.18.2.tgz"
+
+lodash@~4.17.21:
+  version "4.17.21"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='yarn.lock', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_javascript_lockfile(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('express', '4.18.2'), deps)
+            self.assertIn(('lodash', '4.17.21'), deps)
+            
+            os.unlink(f.name)
+
+
 class TestManifestFileParser(unittest.TestCase):
     """Test manifest file auto-detection."""
     
@@ -441,10 +520,48 @@ dependencies {
             
             os.unlink(f.name)
     
+    def test_package_json_detection(self):
+        """Test that package.json files are detected correctly."""
+        content = """{
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='package.json', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('express', '^4.18.2'))
+            
+            os.unlink(f.name)
+    
+    def test_package_lock_json_detection(self):
+        """Test that package-lock.json files are detected correctly."""
+        content = """{
+  "dependencies": {
+    "lodash": {
+      "version": "4.17.21"
+    }
+  }
+}"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='package-lock.json', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('lodash', '4.17.21'))
+            
+            os.unlink(f.name)
+    
     def test_unsupported_file_type(self):
         """Test that unsupported file types raise ValueError."""
         with self.assertRaises(ValueError) as context:
-            parse_manifest_file('package.json')  # JavaScript file not yet supported
+            parse_manifest_file('Cargo.toml')  # Rust file not yet supported
         
         self.assertIn('Unsupported manifest file type', str(context.exception))
 
