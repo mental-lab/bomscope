@@ -5,7 +5,7 @@ Tests for dependency manifest parsers.
 import os
 import tempfile
 import unittest
-from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_pipfile, parse_manifest_file
+from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_pipfile, parse_setup_py, parse_manifest_file
 
 
 class TestPythonRequirementsParser(unittest.TestCase):
@@ -179,6 +179,68 @@ pandas = "*"
             os.unlink(f.name)
 
 
+class TestSetupPyParser(unittest.TestCase):
+    """Test setup.py parsing."""
+    
+    def test_parse_setup_py_dependencies(self):
+        """Test parsing setup.py install_requires."""
+        content = """from setuptools import setup
+
+setup(
+    name="test-package",
+    install_requires=[
+        "flask>=2.3.0",
+        "requests>=2.28.0",
+    ],
+)
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_setup_py(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertEqual(deps[0], ('flask', '>=2.3.0'))
+            self.assertEqual(deps[1], ('requests', '>=2.28.0'))
+            
+            os.unlink(f.name)
+
+    def test_parse_setup_py_multiline(self):
+        """Test parsing setup.py with multiline install_requires."""
+        content = """from setuptools import setup, find_packages
+
+setup(
+    name="sample-package",
+    version="1.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "flask>=2.3.0",
+        "requests>=2.28.0",
+        "numpy~=1.24.0",
+    ],
+    extras_require={
+        "dev": [
+            "pytest>=7.0.0",
+            "black",
+        ]
+    }
+)
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_setup_py(f.name)
+            
+            self.assertEqual(len(deps), 3)
+            self.assertIn(('flask', '>=2.3.0'), deps)
+            self.assertIn(('requests', '>=2.28.0'), deps)
+            self.assertIn(('numpy', '~=1.24.0'), deps)
+            
+            os.unlink(f.name)
+
+
 class TestManifestFileParser(unittest.TestCase):
     """Test manifest file auto-detection."""
     
@@ -224,6 +286,28 @@ requests = ">=2.28.0"
             
             self.assertEqual(len(deps), 1)
             self.assertEqual(deps[0], ('requests', '>=2.28.0'))
+            
+            os.unlink(f.name)
+    
+    def test_setup_py_detection(self):
+        """Test that setup.py files are detected correctly."""
+        content = """from setuptools import setup
+
+setup(
+    name="test-package",
+    install_requires=[
+        "flask>=2.3.0",
+    ],
+)
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='setup.py', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('flask', '>=2.3.0'))
             
             os.unlink(f.name)
     

@@ -4,6 +4,7 @@ Supports Python manifest formats:
 - requirements.txt (pip)
 - pyproject.toml (Poetry, PEP 621)
 - Pipfile (pipenv)
+- setup.py (setuptools)
 """
 
 import re
@@ -109,6 +110,34 @@ def parse_pipfile(file_path: str) -> List[Tuple[str, str]]:
     return dependencies
 
 
+def parse_setup_py(file_path: str) -> List[Tuple[str, str]]:
+    """Parse setup.py file for dependencies.
+
+    Returns:
+        List of (package_name, version_spec) tuples
+    """
+    dependencies = []
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    # Find install_requires section
+    # Patterns: install_requires=['pkg>=1.0', 'pkg2'],
+    #           install_requires=["pkg>=1.0"],
+    match = re.search(r'install_requires\s*=\s*\[(.*?)\]', content, re.DOTALL)
+    if match:
+        requires_content = match.group(1)
+        # Extract each requirement
+        for req in re.findall(r'["\']([^"\']+)["\']', requires_content):
+            # Parse package name and version
+            pkg_match = re.match(r'^([a-zA-Z0-9\-_.]+)([><=~!]+.+)?$', req.strip())
+            if pkg_match:
+                package = pkg_match.group(1)
+                version = pkg_match.group(2) if pkg_match.group(2) else ''
+                dependencies.append((package, version))
+
+    return dependencies
+
+
 def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
     """Auto-detect and parse manifest file based on filename.
     
@@ -127,5 +156,7 @@ def parse_manifest_file(file_path: str) -> List[Tuple[str, str]]:
         return parse_pyproject_toml(file_path)
     elif file_path.endswith('Pipfile'):
         return parse_pipfile(file_path)
+    elif file_path.endswith('setup.py'):
+        return parse_setup_py(file_path)
     else:
         raise ValueError(f"Unsupported manifest file type: {file_path}")
