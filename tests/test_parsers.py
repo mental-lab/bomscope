@@ -5,7 +5,15 @@ Tests for dependency manifest parsers.
 import os
 import tempfile
 import unittest
-from repo_analyzer.parsers import parse_python_requirements, parse_pyproject_toml, parse_pipfile, parse_setup_py, parse_manifest_file
+from repo_analyzer.parsers import (
+    parse_python_requirements, 
+    parse_pyproject_toml, 
+    parse_pipfile, 
+    parse_setup_py,
+    parse_java_pom,
+    parse_gradle_build,
+    parse_manifest_file
+)
 
 
 class TestPythonRequirementsParser(unittest.TestCase):
@@ -241,6 +249,87 @@ setup(
             os.unlink(f.name)
 
 
+class TestJavaPomParser(unittest.TestCase):
+    """Test Java pom.xml parsing."""
+    
+    def test_parse_pom_dependencies(self):
+        """Test parsing Maven pom.xml dependencies."""
+        content = """<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>5.3.21</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+        </dependency>
+    </dependencies>
+</project>"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_java_pom(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('org.springframework:spring-core', '5.3.21'), deps)
+            self.assertIn(('junit:junit', '4.13.2'), deps)
+            
+            os.unlink(f.name)
+
+
+class TestGradleBuildParser(unittest.TestCase):
+    """Test Gradle build.gradle parsing."""
+    
+    def test_parse_gradle_dependencies(self):
+        """Test parsing Gradle build.gradle dependencies."""
+        content = """
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.7.0'
+    testImplementation 'junit:junit:4.13.2'
+    api 'com.fasterxml.jackson.core:jackson-core:2.13.3'
+    compile 'org.slf4j:slf4j-api:1.7.36'
+}
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.gradle', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_gradle_build(f.name)
+            
+            self.assertEqual(len(deps), 4)
+            self.assertIn(('org.springframework.boot:spring-boot-starter-web', '2.7.0'), deps)
+            self.assertIn(('junit:junit', '4.13.2'), deps)
+            self.assertIn(('com.fasterxml.jackson.core:jackson-core', '2.13.3'), deps)
+            self.assertIn(('org.slf4j:slf4j-api', '1.7.36'), deps)
+            
+            os.unlink(f.name)
+
+    def test_parse_gradle_parentheses_syntax(self):
+        """Test parsing Gradle dependencies with parentheses syntax."""
+        content = """
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web:2.7.0")
+    testImplementation("junit:junit:4.13.2")
+}
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.gradle', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_gradle_build(f.name)
+            
+            self.assertEqual(len(deps), 2)
+            self.assertIn(('org.springframework.boot:spring-boot-starter-web', '2.7.0'), deps)
+            self.assertIn(('junit:junit', '4.13.2'), deps)
+            
+            os.unlink(f.name)
+
+
 class TestManifestFileParser(unittest.TestCase):
     """Test manifest file auto-detection."""
     
@@ -311,10 +400,51 @@ setup(
             
             os.unlink(f.name)
     
+    def test_pom_xml_detection(self):
+        """Test that pom.xml files are detected correctly."""
+        content = """<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+        </dependency>
+    </dependencies>
+</project>"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='pom.xml', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('junit:junit', '4.13.2'))
+            
+            os.unlink(f.name)
+    
+    def test_build_gradle_detection(self):
+        """Test that build.gradle files are detected correctly."""
+        content = """
+dependencies {
+    implementation 'org.springframework:spring-core:5.3.21'
+}
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='build.gradle', delete=False) as f:
+            f.write(content)
+            f.flush()
+            
+            deps = parse_manifest_file(f.name)
+            
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0], ('org.springframework:spring-core', '5.3.21'))
+            
+            os.unlink(f.name)
+    
     def test_unsupported_file_type(self):
         """Test that unsupported file types raise ValueError."""
         with self.assertRaises(ValueError) as context:
-            parse_manifest_file('pom.xml')
+            parse_manifest_file('package.json')  # JavaScript file not yet supported
         
         self.assertIn('Unsupported manifest file type', str(context.exception))
 
