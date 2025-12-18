@@ -1,37 +1,154 @@
 # Ecosystems Evaluate
 
-**Multi-platform dependency analysis tool for Chainguard coverage assessment.**
+Multi-platform dependency analysis tool for GitLab and GitHub repositories.
 
-## Status
-**Work in Progress** - Initial development phase
+## Features
 
-## Goal
-Analyze repositories across multiple platforms (GitLab, GitHub, Azure DevOps, Bitbucket) to extract dependency information for Chainguard package coverage analysis.
+**Platform Support**
+- GitLab
+- GitHub
 
-## Planned Features
-- Multi-platform repository access
-- Dependency manifest parsing (Python, Java, JavaScript)
-- Parallel processing for performance
-- JSON output for integration with Chainguard tools
+**Ecosystem Parsing**
+- **Python**: requirements.txt, pyproject.toml, Pipfile, setup.py
+- **Java**: pom.xml, build.gradle
+- **JavaScript**: package.json, package-lock.json, yarn.lock, pnpm-lock.yaml
 
-## Development Setup
+**Analysis Options**
+- Analyze entire organizations/groups
+- Analyze individual repositories
+- JSON output for integration
+
+## Quick Start
 
 ### Prerequisites
 - Python 3.9+
-- Virtual environment support
+- Git
+- Personal access token for your platform (GitLab/GitHub)
 
 ### Installation
+
 ```bash
+# Clone the repository
+git clone <your-repo-url>
+cd ecosystems-evaluate
+
 # Create virtual environment and install dependencies
 make install
 
-# Verify setup
+# Activate virtual environment
 source venv/bin/activate
-python --version
 ```
 
-### Cleanup
+### Usage
+
+#### Analyze an entire GitLab group
 ```bash
-# Remove virtual environment
-make clean-all
+python3 main.py -p gitlab -s https://gitlab.com -t YOUR_TOKEN -o your-group-name -O analysis.json -v
+```
+
+#### Analyze a GitHub organization
+```bash
+python3 main.py -p github -s https://github.com -t YOUR_TOKEN -o your-org-name -O analysis.json -v
+```
+
+#### Analyze a specific repository
+```bash
+python3 main.py -p gitlab -s https://gitlab.com -t YOUR_TOKEN -o group-name -r group-name/project-name -O repo-analysis.json -v
+```
+
+### Command Line Options
+
+| Option | Description | Required |
+|--------|-------------|----------|
+| `-p, --platform` | Platform: gitlab, github | Yes |
+| `-s, --source` | Platform URL (e.g., https://gitlab.com) | Yes |
+| `-t, --token` | Personal access token | Yes |
+| `-o, --org` | Organization/group name to analyze | Yes |
+| `-r, --repo` | Specific repository (format: owner/repo) | No |
+| `-O, --output` | Output JSON file path | Yes |
+| `-w, --workers` | Number of parallel workers (default: 4) | No |
+| `-v, --verbose` | Enable verbose output | No |
+
+## Getting Access Tokens
+
+### GitLab Personal Access Token
+1. Go to GitLab → User Settings → Access Tokens
+2. Create token with `read_api` and `read_repository` scopes
+3. Copy the token value
+
+### GitHub Personal Access Token
+1. Go to GitHub → Settings → Developer settings → Personal access tokens
+2. Generate new token (classic) with `repo` scope for private repos, or no scopes for public repos
+3. Copy the token value
+
+## Output Format
+
+The tool generates a comprehensive JSON report containing:
+
+```json
+{
+  "organization_name": "your-org",
+  "platform": "gitlab",
+  "total_projects": 25,
+  "analyzed_projects": 23,
+  "total_dependencies": 456,
+  "ecosystems_breakdown": {
+    "python": {"total_dependencies": 200, "total_projects": 15},
+    "java": {"total_dependencies": 150, "total_projects": 8},
+    "javascript": {"total_dependencies": 106, "total_projects": 12}
+  },
+  "projects": [
+    {
+      "name": "my-project",
+      "language": "Python",
+      "dependencies": [
+        {
+          "file_path": "requirements.txt",
+          "ecosystem": "python",
+          "dependencies": [
+            {"name": "flask", "version": "2.3.0"},
+            {"name": "requests", "version": ">=2.28.0"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Development
+
+### Running Tests
+```bash
+make test
+```
+
+### Project Structure
+```
+ecosystems-evaluate/
+├── main.py                 # CLI entry point
+├── repo_analyzer/          # Core analysis modules
+│   ├── parsers.py         # Dependency manifest parsers
+│   ├── models.py          # Data models
+│   ├── platform_analyzers.py  # Base platform analyzer
+│   ├── gitlab_analyzer.py     # GitLab-specific logic
+│   ├── github_analyzer.py     # GitHub-specific logic
+│   └── repository_analyzer.py # Main orchestration
+├── tests/                  # Test suite
+└── Makefile               # Development commands
+```
+
+## Troubleshooting
+
+**Authentication Error (401)**
+- Verify your token has correct permissions
+- Check token hasn't expired
+
+**No Dependencies Found**
+- Verify repositories contain supported manifest files
+- Use `-v` flag for verbose output
+
+**Getting Help**
+```bash
+python3 main.py --help
 ```

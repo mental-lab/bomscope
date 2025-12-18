@@ -15,7 +15,7 @@ from repo_analyzer.repository_analyzer import RepositoryAnalyzer
 
 @click.command()
 @click.version_option("1.0.0")
-@click.option('-p', '--platform', required=True, type=click.Choice(['gitlab', 'github', 'bitbucket', 'ado'], case_sensitive=False), help='Platform to analyze (gitlab, github, bitbucket*, ado*) *=experimental')
+@click.option('-p', '--platform', required=True, type=click.Choice(['gitlab', 'github'], case_sensitive=False), help='Platform to analyze (gitlab, github)')
 @click.option('-s', '--source', required=True, help='Platform instance URL (e.g., https://gitlab.com or https://github.com)')
 @click.option('-t', '--token', required=True, help='Personal access token')
 @click.option('-o', '--org', required=True, help='Organization/group name to analyze')
@@ -32,8 +32,6 @@ def cli(platform: str, source: str, token: str, org: str, repo: str, output: str
     Platforms:
         gitlab  - Fully tested
         github  - Fully tested
-        ado    - Experimental (Azure DevOps)
-        bitbucket - Experimental
 
     Examples:
         # Analyze GitLab group (tested)
@@ -47,10 +45,6 @@ def cli(platform: str, source: str, token: str, org: str, repo: str, output: str
     """
     start_time = time.time()
     
-    # Warn about experimental platforms
-    if platform.lower() in ['ado', 'bitbucket']:
-        click.echo(f"Warning: {platform.upper()} support is experimental and not fully tested", err=True)
-        click.echo("")
     
     try:
         # Initialize analyzer with platform credentials
