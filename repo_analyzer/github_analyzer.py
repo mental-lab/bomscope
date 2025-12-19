@@ -8,10 +8,6 @@ This module handles:
 - File content retrieval from GitHub repositories
 - Auto-detection of user vs organization accounts
 
-Features:
-- Supports both github.com and GitHub Enterprise
-- Handles user accounts and organizations seamlessly
-- Base64 decoding for file contents
 """
 
 import base64
@@ -42,11 +38,6 @@ class GitHubAnalyzer(PlatformAnalyzer):
         Returns:
             List of RepositoryInfo objects for all accessible repositories
             
-        Features:
-            - Auto-detects user vs organization accounts
-            - Uses appropriate API endpoints for each type
-            - Supports GitHub Enterprise instances
-            - Paginates through all results
         """
         repos = []
         
@@ -164,9 +155,6 @@ class GitHubAnalyzer(PlatformAnalyzer):
         Returns:
             File content as string, or None if file doesn't exist
             
-        Features:
-            - Handles base64 encoded content from GitHub API
-            - Supports both github.com and GitHub Enterprise
         """
         try:
             # Extract owner/repo from URL or use name

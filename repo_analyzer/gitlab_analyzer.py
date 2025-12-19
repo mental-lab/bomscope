@@ -37,10 +37,6 @@ class GitLabAnalyzer(PlatformAnalyzer):
         Returns:
             List of RepositoryInfo objects for all projects in the group
 
-        Features:
-            - Handles both numeric group IDs and group paths
-            - Includes subgroups automatically
-            - Paginates through all results
         """
         projects = []
 
