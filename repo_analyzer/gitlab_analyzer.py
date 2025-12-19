@@ -64,6 +64,9 @@ class GitLabAnalyzer(PlatformAnalyzer):
             response = self.session.get(url, params=params)
             response.raise_for_status()
 
+            # Handle rate limiting
+            self._handle_rate_limiting(response.headers, "GitLab")
+
             batch_projects = response.json()
             if not batch_projects:
                 break
@@ -97,6 +100,9 @@ class GitLabAnalyzer(PlatformAnalyzer):
 
         response = self.session.get(url)
         response.raise_for_status()
+        
+        # Handle rate limiting
+        self._handle_rate_limiting(response.headers, "GitLab")
 
         project = response.json()
         return RepositoryInfo(
@@ -127,6 +133,8 @@ class GitLabAnalyzer(PlatformAnalyzer):
 
             response = self.session.get(url, params=params)
             if response.status_code == 200:
+                # Handle rate limiting
+                self._handle_rate_limiting(response.headers, "GitLab")
                 return response.text
         except Exception as e:
             logging.debug(f"Could not get {file_path} from {repo_info.name}: {e}")
