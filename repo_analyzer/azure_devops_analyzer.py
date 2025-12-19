@@ -28,40 +28,21 @@ class AzureDevOpsAnalyzer(PlatformAnalyzer):
     
     def __init__(self, source_url: str, token: str, ssl_verify: bool = True):
         """Initialize with session management and enhanced error handling."""
-        super().__init__(source_url, token)
+        super().__init__(source_url, token, ssl_verify)
         
-        # Create persistent session with retry logic
-        self.session = requests.Session()
-        self.session.verify = ssl_verify
-        
-        # Handle SSL verification warnings
-        if not ssl_verify:
-            print("Ignoring SSL verification")
-            disable_warnings(InsecureRequestWarning)
-        
-        # Add retry logic for transient failures
-        retries = Retry(
-            total=2,
-            backoff_factor=1,
-            status_forcelist=[500, 502, 503, 504, 429]
-        )
-        self.session.mount('http://', HTTPAdapter(max_retries=retries))
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
-        
-        # Set up authentication headers
-        auth_string = base64.b64encode(f':{token}'.encode()).decode()
-        self.session.headers.update({
-            'Authorization': f'Basic {auth_string}',
-            'Content-Type': 'application/json'
-        })
+        # Additional Azure DevOps specific setup
+        # (Base class already handles session, SSL, and retry logic)
         
         # API version parameter
         self.api_params = {'api-version': '7.2'}
     
     def _get_auth_headers(self) -> dict[str, str]:
         """Azure DevOps uses basic authentication with PAT tokens."""
-        # This is now handled in __init__ via session headers
-        return self.session.headers
+        auth_string = base64.b64encode(f':{self.token}'.encode()).decode()
+        return {
+            'Authorization': f'Basic {auth_string}',
+            'Content-Type': 'application/json'
+        }
     
     def _generate_request_url(self, api_path: str, org_name: str, sub_api: str = None) -> str:
         """Generate Azure DevOps API URL with subdomain support."""
