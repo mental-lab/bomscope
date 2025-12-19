@@ -73,6 +73,9 @@ class GitHubAnalyzer(PlatformAnalyzer):
             response = self.session.get(url, params=params)
             response.raise_for_status()
             
+            # Handle rate limiting
+            self._handle_rate_limiting(response.headers, "GitHub")
+            
             batch_repos = response.json()
             if not batch_repos:
                 break
@@ -109,9 +112,14 @@ class GitHubAnalyzer(PlatformAnalyzer):
         try:
             response = self.session.get(url)
             response.raise_for_status()
+            
+            # Handle rate limiting
+            self._handle_rate_limiting(response.headers, "GitHub")
+            
             account_info = response.json()
             return account_info.get('type', 'User')  # Default to User if type not found
-        except Exception:
+        except Exception as e:
+            logging.debug(f"Could not determine account type for {account_name}: {e}")
             # If we can't determine, default to Organization for backward compatibility
             return 'Organization'
     
@@ -131,6 +139,9 @@ class GitHubAnalyzer(PlatformAnalyzer):
         
         response = self.session.get(url)
         response.raise_for_status()
+        
+        # Handle rate limiting
+        self._handle_rate_limiting(response.headers, "GitHub")
         
         repo = response.json()
         return RepositoryInfo(
@@ -172,13 +183,15 @@ class GitHubAnalyzer(PlatformAnalyzer):
             
             params = {'ref': repo_info.default_branch}
             response = self.session.get(url, params=params)
-            
             if response.status_code == 200:
-                data = response.json()
-                if data.get('encoding') == 'base64':
-                    return base64.b64decode(data['content']).decode('utf-8')
-                else:
-                    return data.get('content', '')
+                # Handle rate limiting
+                self._handle_rate_limiting(response.headers, "GitHub")
+                
+                # GitHub returns base64-encoded content
+                content_data = response.json()
+                if content_data.get('encoding') == 'base64':
+                    return base64.b64decode(content_data['content']).decode('utf-8')
+                return content_data.get('content', '')
         except Exception as e:
             logging.debug(f"Could not get {file_path} from {repo_info.name}: {e}")
         
