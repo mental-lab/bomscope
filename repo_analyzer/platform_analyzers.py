@@ -5,9 +5,14 @@ Platform-specific analyzers for dependency extraction across GitLab, GitHub, Bit
 import os
 import re
 import requests
+import time
 from typing import Dict, List, Optional
 import logging
 from abc import ABC, abstractmethod
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3 import disable_warnings
 from .models import RepositoryInfo, DependencyInfo
 
 from .parsers import parse_manifest_file
@@ -17,16 +22,57 @@ from .parsers import parse_manifest_file
 class PlatformAnalyzer(ABC):
     """Abstract base class for platform-specific analyzers."""
     
-    def __init__(self, source_url: str, token: str):
+    def __init__(self, source_url: str, token: str, ssl_verify: bool = True):
         self.source_url = source_url.rstrip('/')
         self.token = token
+        
+        # Create persistent session with retry logic
         self.session = requests.Session()
+        self.session.verify = ssl_verify
+        
+        # Handle SSL verification warnings
+        if not ssl_verify:
+            print("Ignoring SSL verification")
+            disable_warnings(InsecureRequestWarning)
+        
+        # Add retry logic for transient failures
+        retries = Retry(
+            total=2,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504, 429]
+        )
+        self.session.mount('http://', HTTPAdapter(max_retries=retries))
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        
+        # Set up authentication headers
         self.session.headers.update(self._get_auth_headers())
     
     @abstractmethod
     def _get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers for the platform."""
         pass
+    
+    def _handle_rate_limiting(self, headers: dict, platform: str = "generic") -> None:
+        """Handle platform rate limiting with intelligent throttling."""
+        # GitHub rate limiting
+        if 'X-RateLimit-Remaining' in headers:
+            remaining = int(headers.get('X-RateLimit-Remaining', 100))
+            if remaining < 10:  # Conservative threshold
+                reset_time = headers.get('X-RateLimit-Reset')
+                if reset_time:
+                    wait_time = max(1, int(reset_time) - int(time.time()))
+                    logging.info(f"{platform} rate limit approaching, waiting {wait_time} seconds")
+                    time.sleep(wait_time)
+        
+        # GitLab rate limiting (RateLimit-Remaining header)
+        elif 'RateLimit-Remaining' in headers:
+            remaining = int(headers.get('RateLimit-Remaining', 100))
+            if remaining < 10:
+                reset_time = headers.get('RateLimit-ResetTime')
+                if reset_time:
+                    wait_time = max(1, int(reset_time) - int(time.time()))
+                    logging.info(f"{platform} rate limit approaching, waiting {wait_time} seconds")
+                    time.sleep(wait_time)
     
     @abstractmethod
     def get_repositories(self, org_name: str) -> List[RepositoryInfo]:
