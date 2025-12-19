@@ -152,10 +152,12 @@ def get_analyzer(platform: str, source_url: str, token: str) -> PlatformAnalyzer
     # Import analyzers locally to avoid circular imports
     from .gitlab_analyzer import GitLabAnalyzer
     from .github_analyzer import GitHubAnalyzer
+    from .azure_devops_analyzer import AzureDevOpsAnalyzer
     
     analyzers = {
         'gitlab': GitLabAnalyzer,
-        'github': GitHubAnalyzer
+        'github': GitHubAnalyzer,
+        'ado': AzureDevOpsAnalyzer
     }
     
     analyzer_class = analyzers.get(platform.lower())

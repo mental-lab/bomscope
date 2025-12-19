@@ -15,7 +15,7 @@ from repo_analyzer.repository_analyzer import RepositoryAnalyzer
 
 @click.command()
 @click.version_option("1.0.0")
-@click.option('-p', '--platform', required=True, type=click.Choice(['gitlab', 'github'], case_sensitive=False), help='Platform to analyze (gitlab, github)')
+@click.option('-p', '--platform', required=True, type=click.Choice(['gitlab', 'github', 'ado'], case_sensitive=False), help='Platform to analyze (gitlab, github, ado)')
 @click.option('-s', '--source', required=True, help='Platform instance URL (e.g., https://gitlab.com or https://github.com)')
 @click.option('-t', '--token', required=True, help='Personal access token')
 @click.option('-o', '--org', required=True, help='Organization/group name to analyze')
@@ -32,6 +32,7 @@ def cli(platform: str, source: str, token: str, org: str, repo: str, output: str
     Platforms:
         gitlab  - Fully tested
         github  - Fully tested
+        ado     - Azure DevOps support
 
     Examples:
         # Analyze GitLab group (tested)
@@ -39,6 +40,9 @@ def cli(platform: str, source: str, token: str, org: str, repo: str, output: str
 
         # Analyze GitHub organization (tested)
         ecosystems-evaluate -p github -s https://github.com -t $TOKEN -o myorg -O analysis.json
+
+        # Analyze Azure DevOps organization
+        ecosystems-evaluate -p ado -s https://dev.azure.com/myorg -t $TOKEN -o myorg -O analysis.json
 
         # Analyze specific repository
         ecosystems-evaluate -p github -s https://github.com -t $TOKEN -o myorg -r owner/repo -O analysis.json
