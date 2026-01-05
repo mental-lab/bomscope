@@ -55,7 +55,7 @@ analysis_*.json
 
 # Node
 node_modules/
-package-lock.json
+
 
 # Build output
 docs/
