@@ -1,186 +1,105 @@
 # Ecosystems Evaluate
 
-Multi-platform dependency analysis tool for GitLab, GitHub, and Azure DevOps repositories.
+Analyze dependencies across GitLab, GitHub, and Azure DevOps organizations.
 
-## Features
+## Quick Deploy (Fork & Run)
 
-**Platform Support**
-- GitLab
-- GitHub
-- Azure DevOps
+**Want to deploy your own analysis dashboard?**
 
-**Ecosystem Parsing**
-- **Python**: requirements.txt, pyproject.toml, Pipfile, setup.py
-- **Java**: pom.xml, build.gradle
-- **JavaScript**: package.json, package-lock.json, yarn.lock, pnpm-lock.yaml
+1. **Fork this repository**
+2. **Add GitHub Secrets** (Settings → Secrets and variables → Actions):
+   - `PLATFORM_TOKEN` - Your GitLab/GitHub/ADO access token
+   - `ORGANIZATION` - Organization name to analyze
+   - `PLATFORM` - Platform type (`gitlab`, `github`, or `ado`)
+   - `SOURCE` - Platform URL (e.g., `https://gitlab.com`)
+   - Optional: `CHAINGUARD_PYTHON_USERNAME`, `CHAINGUARD_PYTHON_PASSWORD`, `CHAINGUARD_JAVA_USERNAME`, `CHAINGUARD_JAVA_PASSWORD`
+3. **Enable GitHub Pages** (Settings → Pages → Source: GitHub Actions)
+4. **Run the workflow** (Actions → Analyze Dependencies and Deploy Viewer → Run workflow)
+5. **View results** at `https://YOUR-USERNAME.github.io/ecosystems-evaluate/`
 
-**Analysis Options**
-- Analyze entire organizations/groups
-- Analyze individual repositories
-- JSON output for integration
+The dashboard will automatically load your analysis results!
 
-## Quick Start
+## Quick Start (Local)
 
-### Prerequisites
-- Python 3.9+
-- Git
-- Personal access token for your platform (GitLab/GitHub/Azure DevOps)
-
-### Installation
+### 1. Install
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
+git clone <repo-url>
 cd ecosystems-evaluate
-
-# Create virtual environment and install dependencies
 make install
-
-# Activate virtual environment
 source venv/bin/activate
 ```
 
-### Usage
+### 2. Configure
 
-#### Analyze an entire GitLab group
-```bash
-python3 main.py -p gitlab -s https://gitlab.com -t YOUR_TOKEN -o your-group-name -O analysis.json -v
-```
-
-#### Analyze a GitHub organization
-```bash
-python3 main.py -p github -s https://github.com -t YOUR_TOKEN -o your-org-name -O analysis.json -v
-```
-
-#### Analyze an Azure DevOps organization
-```bash
-python3 main.py -p ado -s https://dev.azure.com/your-org -t YOUR_TOKEN -o your-org-name -O analysis.json -v
-```
-
-#### Analyze a specific repository
-```bash
-python3 main.py -p gitlab -s https://gitlab.com -t YOUR_TOKEN -o group-name -r group-name/project-name -O repo-analysis.json -v
-```
-
-### Command Line Options
-
-| Option | Description | Required |
-|--------|-------------|----------|
-| `-p, --platform` | Platform: gitlab, github, ado | Yes |
-| `-s, --source` | Platform URL (e.g., https://gitlab.com) | Yes |
-| `-t, --token` | Personal access token | Yes |
-| `-o, --org` | Organization/group name to analyze | Yes |
-| `-r, --repo` | Specific repository (format: owner/repo) | No |
-| `-O, --output` | Output JSON file path | Yes |
-| `-w, --workers` | Number of parallel workers (default: 4) | No |
-| `-v, --verbose` | Enable verbose output | No |
-
-## Getting Access Tokens
-
-### GitLab Personal Access Token
-1. Go to GitLab → User Settings → Access Tokens
-2. Create token with `read_api` and `read_repository` scopes
-3. Copy the token value
-
-### GitHub Personal Access Token
-1. Go to GitHub → Settings → Developer settings → Personal access tokens
-2. Generate new token (classic) with `repo` scope for private repos, or no scopes for public repos
-3. Copy the token value
-
-### Azure DevOps Personal Access Token
-1. Go to Azure DevOps → User settings → Personal access tokens
-2. Create new token with `Code (read)` scope
-3. Copy the token value
-
-## Output Format
-
-The tool generates a comprehensive JSON report containing:
-
-```json
-{
-  "organization_name": "your-org",
-  "platform": "gitlab",
-  "total_projects": 25,
-  "analyzed_projects": 23,
-  "total_dependencies": 456,
-  "ecosystems_breakdown": {
-    "python": {"total_dependencies": 200, "total_projects": 15},
-    "java": {"total_dependencies": 150, "total_projects": 8},
-    "javascript": {"total_dependencies": 106, "total_projects": 12}
-  },
-  "projects": [
-    {
-      "name": "my-project",
-      "language": "Python",
-      "dependencies": [
-        {
-          "file_path": "requirements.txt",
-          "ecosystem": "python",
-          "dependencies": [
-            {"name": "flask", "version": "2.3.0"},
-            {"name": "requests", "version": ">=2.28.0"}
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Development
-
-### Running Tests
-```bash
-make test
-```
-
-### Project Structure
-```
-ecosystems-evaluate/
-├── main.py                 # CLI entry point
-├── repo_analyzer/          # Core analysis modules
-│   ├── parsers.py         # Dependency manifest parsers
-│   ├── models.py          # Data models
-│   ├── platform_analyzers.py  # Base platform analyzer
-│   ├── gitlab_analyzer.py     # GitLab-specific logic
-│   ├── github_analyzer.py     # GitHub-specific logic
-│   ├── azure_devops_analyzer.py # Azure DevOps-specific logic
-│   └── repository_analyzer.py # Main orchestration
-├── tests/                  # Test suite
-└── Makefile               # Development commands
-```
-
-## Enterprise Support
-
-**SSL Certificate Control**
-For enterprise environments with self-signed certificates, you can disable SSL verification:
+Create `.env` file:
 
 ```bash
-# Add --no-ssl-verify flag for self-signed certificates
-python3 main.py -p ado -s https://tfs.company.com -t YOUR_TOKEN -o your-org --no-ssl-verify -O analysis.json -v
+cp .env.example .env
 ```
 
-**Supported Enterprise Platforms**
-- GitHub Enterprise Server
-- GitLab self-hosted instances  
-- Azure DevOps Server (on-premise)
+Edit `.env` with your credentials:
 
-## Troubleshooting
-
-**Authentication Error (401)**
-- Verify your token has correct permissions
-- Check token hasn't expired
-- For Azure DevOps: Ensure token has `Code (read)` scope
-
-**No Dependencies Found**
-- Verify repositories contain supported manifest files
-- Use `-v` flag for verbose output
-
-**SSL Certificate Issues**
-- Use `--no-ssl-verify` flag for self-signed certificates
-- Ensure your enterprise certificates are properly configured
-
-**Getting Help**
 ```bash
-python3 main.py --help
+PLATFORM=gitlab
+SOURCE=https://gitlab.com
+TOKEN=your_token_here
+ORG=your_org_name
 ```
+
+### 3. Run
+
+```bash
+# Basic analysis
+python3 main.py -O analysis.json -v
+
+# With Chainguard coverage
+python3 main.py -O analysis.json --coverage -v
+```
+
+## Supported Platforms
+
+- **GitLab** - gitlab.com or self-hosted
+- **GitHub** - github.com or Enterprise
+- **Azure DevOps** - dev.azure.com or Server
+
+## Supported Ecosystems
+
+- **Python** - requirements.txt, pyproject.toml, Pipfile, setup.py
+- **Java** - pom.xml, build.gradle
+- **JavaScript** - package.json, package-lock.json, yarn.lock
+
+## Chainguard Coverage (Optional)
+
+To check which dependencies are available in Chainguard Libraries, add to `.env`:
+
+```bash
+CHAINGUARD_PYTHON_USERNAME=your_username
+CHAINGUARD_PYTHON_PASSWORD=your_token
+CHAINGUARD_JAVA_USERNAME=your_username
+CHAINGUARD_JAVA_PASSWORD=your_token
+```
+
+Get credentials from: https://console.chainguard.dev/
+
+## CLI Options
+
+Run `python3 main.py --help` for all options.
+
+**Common flags:**
+- `-p, --platform` - Platform: gitlab, github, ado
+- `-o, --org` - Organization/group name
+- `-r, --repo` - Specific repository (optional)
+- `-O, --output` - Output file path
+- `--coverage` - Include Chainguard coverage analysis
+- `-v, --verbose` - Show progress
+
+## Examples
+
+See [examples/README.md](examples/README.md) for more usage examples.
+
+## Getting Tokens
+
+- **GitLab**: Settings → Access Tokens → `read_api` + `read_repository`
+- **GitHub**: Settings → Developer settings → PAT → `repo` scope
+- **Azure DevOps**: User settings → PAT → `Code (read)` scope

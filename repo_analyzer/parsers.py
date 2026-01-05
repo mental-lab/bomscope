@@ -152,6 +152,8 @@ def parse_setup_py(file_path: str) -> List[Tuple[str, str]]:
 
 def parse_java_pom(file_path: str) -> List[Tuple[str, str]]:
     """Parse Java pom.xml file for dependencies.
+    
+    Resolves Maven property placeholders like ${property.name} to their actual values.
 
     Returns:
         List of (groupId:artifactId, version_spec) tuples
@@ -159,6 +161,43 @@ def parse_java_pom(file_path: str) -> List[Tuple[str, str]]:
     dependencies = []
     tree = ET.parse(file_path)
     root = tree.getroot()
+    
+    # Extract properties from <properties> section
+    properties = {}
+    props_elem = root.find('.//{http://maven.apache.org/POM/4.0.0}properties')
+    if props_elem is not None:
+        for prop in props_elem:
+            # Remove namespace from tag name
+            tag = prop.tag.replace('{http://maven.apache.org/POM/4.0.0}', '')
+            if prop.text:
+                properties[tag] = prop.text
+    
+    # Also extract version from parent if present
+    parent = root.find('.//{http://maven.apache.org/POM/4.0.0}parent')
+    if parent is not None:
+        parent_version = parent.find('{http://maven.apache.org/POM/4.0.0}version')
+        if parent_version is not None and parent_version.text:
+            properties['project.parent.version'] = parent_version.text
+    
+    # Extract project version
+    project_version = root.find('.//{http://maven.apache.org/POM/4.0.0}version')
+    if project_version is not None and project_version.text:
+        properties['project.version'] = project_version.text
+
+    def resolve_property(value: str) -> str:
+        """Resolve Maven property placeholders like ${property.name}"""
+        if not value:
+            return value
+        
+        # Match ${property.name} pattern
+        pattern = r'\$\{([^}]+)\}'
+        matches = re.findall(pattern, value)
+        
+        for prop_name in matches:
+            if prop_name in properties:
+                value = value.replace(f'${{{prop_name}}}', properties[prop_name])
+        
+        return value
 
     # Find all dependencies
     for dep in root.findall('.//{http://maven.apache.org/POM/4.0.0}dependency'):
@@ -169,6 +208,10 @@ def parse_java_pom(file_path: str) -> List[Tuple[str, str]]:
         if group_id is not None and artifact_id is not None:
             package = f"{group_id.text}:{artifact_id.text}"
             version = version_elem.text if version_elem is not None else ''
+            
+            # Resolve property placeholders in version
+            version = resolve_property(version)
+            
             dependencies.append((package, version))
 
     return dependencies

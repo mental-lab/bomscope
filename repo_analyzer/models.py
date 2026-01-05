@@ -45,3 +45,4 @@ class OrganizationAnalysis:
     total_dependencies: int
     projects: List[ProjectAnalysis]
     ecosystems_breakdown: Dict[str, Dict[str, Any]]
+    coverage_analysis: Optional[Dict[str, Any]] = None

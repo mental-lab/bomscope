@@ -2,7 +2,7 @@
 Repository Analyzer - Multi-platform Dependency Analysis Package
 
 A tool for analyzing dependency manifests across multiple platforms:
-- GitLab, GitHub, Azure DevOps, Bitbucket
+- GitLab, GitHub, Azure DevOps
 - Python, Java, JavaScript ecosystems
 - Organization-wide and individual repository analysis
 """

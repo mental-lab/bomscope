@@ -1,0 +1,36 @@
+{
+  "name": "ecosystems-evaluate",
+  "version": "1.0.0",
+  "description": "Analyze dependencies across GitLab, GitHub, and Azure DevOps organizations.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mental-lab/ecosystems-evaluate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mental-lab/ecosystems-evaluate/issues"
+  },
+  "homepage": "https://github.com/mental-lab/ecosystems-evaluate#readme",
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.3",
+    "vite": "^7.3.0",
+    "vue": "^3.5.26"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "vue-chartjs": "^5.3.3"
+  }
+}
