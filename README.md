@@ -2,7 +2,24 @@
 
 Analyze dependencies across GitLab, GitHub, and Azure DevOps organizations.
 
-## Quick Start
+## Quick Deploy (Fork & Run)
+
+**Want to deploy your own analysis dashboard?**
+
+1. **Fork this repository**
+2. **Add GitHub Secrets** (Settings → Secrets and variables → Actions):
+   - `PLATFORM_TOKEN` - Your GitLab/GitHub/ADO access token
+   - `ORGANIZATION` - Organization name to analyze
+   - `PLATFORM` - Platform type (`gitlab`, `github`, or `ado`)
+   - `SOURCE` - Platform URL (e.g., `https://gitlab.com`)
+   - Optional: `CHAINGUARD_PYTHON_USERNAME`, `CHAINGUARD_PYTHON_PASSWORD`, `CHAINGUARD_JAVA_USERNAME`, `CHAINGUARD_JAVA_PASSWORD`
+3. **Enable GitHub Pages** (Settings → Pages → Source: GitHub Actions)
+4. **Run the workflow** (Actions → Analyze Dependencies and Deploy Viewer → Run workflow)
+5. **View results** at `https://YOUR-USERNAME.github.io/ecosystems-evaluate/`
+
+The dashboard will automatically load your analysis results!
+
+## Quick Start (Local)
 
 ### 1. Install
 

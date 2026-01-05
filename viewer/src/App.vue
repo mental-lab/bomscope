@@ -67,6 +67,19 @@ export default {
     const activeTab = ref('Overview')
     const tabs = ['Overview', 'Stats', 'Projects', 'Dependencies']
 
+    // Try to auto-load analysis.json from public directory
+    const loadDefaultAnalysis = async () => {
+      try {
+        const response = await fetch('/ecosystems-evaluate/analysis.json')
+        if (response.ok) {
+          analysisData.value = await response.json()
+        }
+      } catch (error) {
+        // No default analysis file, user will need to upload
+        console.log('No default analysis file found, waiting for upload')
+      }
+    }
+
     const handleFileUpload = (event) => {
       const file = event.target.files[0]
       if (!file) return
@@ -81,6 +94,9 @@ export default {
       }
       reader.readAsText(file)
     }
+
+    // Load default analysis on mount
+    loadDefaultAnalysis()
 
     return {
       analysisData,
