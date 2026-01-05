@@ -67,7 +67,6 @@ python3 main.py -O analysis.json --coverage -v
 
 - **Python** - requirements.txt, pyproject.toml, Pipfile, setup.py
 - **Java** - pom.xml, build.gradle
-- **JavaScript** - package.json, package-lock.json, yarn.lock
 
 ## Chainguard Coverage (Optional)
 
