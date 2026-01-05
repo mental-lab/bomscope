@@ -1,12 +1,12 @@
 """
-Multi-platform dependency analyzer for GitLab, GitHub, Bitbucket, and Azure DevOps.
+Multi-platform dependency analyzer for GitLab, GitHub, and Azure DevOps.
 
 Simple Usage:
     >>> analyzer = RepositoryAnalyzer(platform='gitlab', url='https://gitlab.com', token='your-token')
     >>> results = analyzer.analyze_organization('my-org')
     >>> analyzer.save_results(results, 'output.json')
 
-Supported Platforms: gitlab, github, bitbucket, ado
+Supported Platforms: gitlab, github, ado
 Supported Ecosystems: Python, Java, JavaScript
 """
 
@@ -25,7 +25,7 @@ class RepositoryAnalyzer:
     """Simple, secure analyzer for multi-platform dependency analysis.
 
     Args:
-        platform: Platform name ('gitlab', 'github', 'bitbucket', 'ado')
+        platform: Platform name ('gitlab', 'github', 'ado')
         url: Platform URL (e.g., 'https://gitlab.com')
         token: Authentication token
         max_workers: Number of parallel workers (default: 4)
@@ -37,7 +37,7 @@ class RepositoryAnalyzer:
     """
 
     # Supported platforms and ecosystems (for user reference)
-    SUPPORTED_PLATFORMS = ['gitlab', 'github', 'bitbucket', 'ado']
+    SUPPORTED_PLATFORMS = ['gitlab', 'github', 'ado']
     SUPPORTED_ECOSYSTEMS = ['python', 'java', 'javascript']
 
     def __init__(self, platform: str, url: str, token: str, max_workers: int = 4):

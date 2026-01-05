@@ -1,5 +1,5 @@
 """
-Platform-specific analyzers for dependency extraction across GitLab, GitHub, Bitbucket, and Azure DevOps.
+Platform-specific analyzers for dependency extraction across GitLab, GitHub, and Azure DevOps.
 """
 
 import os
