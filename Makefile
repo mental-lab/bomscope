@@ -26,7 +26,7 @@ venv:
 install: venv
 	@echo "Installing dependencies..."
 	@. venv/bin/activate && pip install --upgrade pip
-	@. venv/bin/activate && pip install requests packaging click PyYAML pydantic
+	@. venv/bin/activate && pip install requests packaging click pydantic
 	@echo ""
 	@echo "Installation complete!"
 
@@ -36,10 +36,10 @@ test: venv
 	@. venv/bin/activate && python -m unittest discover tests/ -v
 	@echo "Tests completed!"
 
-# Clean results
+# Clean analysis output files
 clean:
-	@rm -rf results/
-	@echo "Results cleaned"
+	@rm -f analysis.json analysis_*.json *-analysis.json
+	@echo "Analysis files cleaned"
 
 # Clean everything including venv
 clean-all: clean

@@ -26,8 +26,6 @@ env/
 ENV/
 .venv
 
-# Results
-results/
 
 # IDE
 .vscode/
@@ -42,3 +40,22 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Environment and credentials
+.env
+.netrc
+
+# Analysis outputs
+analysis.json
+analysis_*.json
+*-analysis.json
+
+# Workspace files
+*.code-workspace
+
+# Node
+node_modules/
+package-lock.json
+
+# Build output
+docs/
