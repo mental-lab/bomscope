@@ -5,13 +5,13 @@ on:
     inputs:
       platform:
         description: 'Platform (gitlab, github, ado)'
-        required: false
+        required: true
         default: 'github'
       organization:
         description: 'Organization/Group name'
-        required: false
+        required: true
       source_url:
-        description: 'Platform URL (e.g., https://github.com)'
+        description: 'Platform URL (e.g., https://gitlab.com)'
         required: false
         default: 'https://github.com'
   schedule:
