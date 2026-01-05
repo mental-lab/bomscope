@@ -21,6 +21,7 @@ on:
 jobs:
   analyze-and-deploy:
     runs-on: ubuntu-latest
+    environment: github-pages
     permissions:
       contents: write
       pages: write
