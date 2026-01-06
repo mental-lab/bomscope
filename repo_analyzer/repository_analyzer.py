@@ -21,6 +21,7 @@ from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo, Depen
 from .platform_analyzers import get_analyzer
 from .git_cloner import GitCloner
 from .syft_analyzer import SyftAnalyzer
+from .dockerfile_analyzer import DockerfileAnalyzer
 
 
 class RepositoryAnalyzer:
@@ -60,9 +61,10 @@ class RepositoryAnalyzer:
         # Create platform-specific analyzer (only for listing repos)
         self._analyzer = get_analyzer(self.platform, self.url, self.token)
         
-        # Create git cloner and syft analyzer
+        # Create git cloner, syft analyzer, and dockerfile analyzer
         self.git_cloner = GitCloner(token=self.token)
         self.syft_analyzer = SyftAnalyzer()
+        self.dockerfile_analyzer = DockerfileAnalyzer()
         
         # Check dependencies
         if not self.git_cloner.check_git_available():
@@ -192,11 +194,15 @@ class RepositoryAnalyzer:
                 self.logger.warning(f"Syft analysis failed for {repo_info.name}")
                 return None
             
+            # Analyze Dockerfiles for Chainguard image adoption
+            self.logger.debug(f"Analyzing Dockerfiles in {repo_info.name}...")
+            dockerfile_results = self.dockerfile_analyzer.analyze_repository(clone_path)
+            
             # Parse SBOM into our dependency format
             dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data)
             
-            if not dependencies_by_ecosystem:
-                self.logger.debug(f"No dependencies found in {repo_info.name}")
+            if not dependencies_by_ecosystem and not dockerfile_results['dockerfiles_found']:
+                self.logger.debug(f"No dependencies or Dockerfiles found in {repo_info.name}")
                 return None
             
             # Convert to manifest format
@@ -222,12 +228,21 @@ class RepositoryAnalyzer:
                     manifests.append(manifest)
                     total_deps += len(deps)
             
-            return ProjectAnalysis(
+            # Create project analysis with Dockerfile info
+            project = ProjectAnalysis(
                 repository=repo_info,
                 manifests=manifests,
                 total_dependencies=total_deps,
                 collection_timestamp=datetime.utcnow().isoformat()
             )
+            
+            # Store Dockerfile adoption info (will be used by coverage checker)
+            if not hasattr(project, 'dockerfile_adoption'):
+                # Add as a note since ProjectAnalysis dataclass doesn't have this field
+                if dockerfile_results['adoption_detected']:
+                    project.note = f"Chainguard images: {', '.join(dockerfile_results['chainguard_images'][:3])}"
+            
+            return project
             
         except Exception as e:
             self.logger.error(f"Failed to analyze {repo_info.name}: {e}")
