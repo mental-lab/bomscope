@@ -83,15 +83,18 @@ class DockerfileAnalyzer:
         dockerfiles = []
         repo = Path(repo_path)
         
-        # Common Dockerfile patterns
-        patterns = [
-            '**/Dockerfile',
-            '**/Dockerfile.*',
-            '**/*.dockerfile'
-        ]
-        
-        for pattern in patterns:
-            dockerfiles.extend(repo.glob(pattern))
+        # Find all files recursively and check if they match Dockerfile patterns
+        for file_path in repo.rglob('*'):
+            if not file_path.is_file():
+                continue
+            
+            filename = file_path.name.lower()
+            
+            # Match various Dockerfile patterns (case-insensitive)
+            if (filename == 'dockerfile' or 
+                filename.startswith('dockerfile.') or 
+                filename.endswith('.dockerfile')):
+                dockerfiles.append(file_path)
         
         return dockerfiles
     
