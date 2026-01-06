@@ -115,9 +115,15 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
             
             if repo:
                 # Analyze specific repository
+                # For GitHub, need to combine org/repo format
+                if platform.lower() == 'github' and '/' not in repo:
+                    repo_spec = f"{org}/{repo}"
+                else:
+                    repo_spec = repo
+                
                 if verbose:
-                    click.echo(f"Analyzing repository {repo} on {platform}")
-                analysis = analyzer.analyze_repository(repo)
+                    click.echo(f"Analyzing repository {repo_spec} on {platform}")
+                analysis = analyzer.analyze_repository(repo_spec)
             else:
                 # Analyze entire organization
                 if verbose:
