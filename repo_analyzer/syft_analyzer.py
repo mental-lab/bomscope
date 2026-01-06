@@ -9,6 +9,7 @@ import logging
 import subprocess
 from typing import Dict, List, Optional
 from pathlib import Path
+from .java_parser import JavaParser
 
 
 class SyftAnalyzer:
@@ -17,6 +18,7 @@ class SyftAnalyzer:
     def __init__(self):
         """Initialize Syft analyzer."""
         self.logger = logging.getLogger(__name__)
+        self.java_parser = JavaParser()
     
     def check_syft_available(self) -> bool:
         """
@@ -83,12 +85,13 @@ class SyftAnalyzer:
             self.logger.error(f"Syft analysis failed: {e}")
             return None
     
-    def parse_sbom_to_dependencies(self, sbom_data: Dict, include_all_ecosystems: bool = True) -> Dict[str, List[Dict]]:
+    def parse_sbom_to_dependencies(self, sbom_data: Dict, repo_path: str = None, include_all_ecosystems: bool = True) -> Dict[str, List[Dict]]:
         """
         Parse syft SBOM output into dependency format.
         
         Args:
             sbom_data: Raw SBOM data from syft
+            repo_path: Optional path to repository for enhanced Java parsing
             include_all_ecosystems: If True, include all ecosystems detected by syft.
                                    If False, only include python/java/javascript.
             
@@ -143,7 +146,61 @@ class SyftAnalyzer:
                 'locations': [loc.get('path', '') for loc in artifact.get('locations', [])]
             })
         
+        # Enhance Java dependencies with proper Maven coordinates from pom.xml
+        if repo_path and 'java' in dependencies_by_ecosystem:
+            self._enhance_java_dependencies(dependencies_by_ecosystem, repo_path)
+        
         return dependencies_by_ecosystem
+    
+    def _enhance_java_dependencies(self, dependencies_by_ecosystem: Dict[str, List[Dict]], repo_path: str):
+        """
+        Enhance Java dependencies with proper Maven coordinates from pom.xml files.
+        
+        Args:
+            dependencies_by_ecosystem: Dictionary of dependencies by ecosystem
+            repo_path: Path to repository
+        """
+        try:
+            # Parse pom.xml files to get proper Maven coordinates
+            parsed_java_deps = self.java_parser.parse_repository(repo_path)
+            
+            if not parsed_java_deps:
+                return
+            
+            # Create a lookup map by artifact name for matching
+            parsed_by_artifact = {}
+            for dep in parsed_java_deps:
+                # Extract artifact name from groupId:artifactId
+                if ':' in dep['name']:
+                    artifact_name = dep['name'].split(':')[-1]
+                    parsed_by_artifact[artifact_name.lower()] = dep
+            
+            # Replace syft's Java dependencies with parsed ones that have proper coordinates
+            enhanced_deps = []
+            syft_artifact_names = set()
+            
+            # First, add all parsed dependencies with proper coordinates
+            for dep in parsed_java_deps:
+                enhanced_deps.append(dep)
+                # Track artifact names we've added
+                if ':' in dep['name']:
+                    artifact_name = dep['name'].split(':')[-1]
+                    syft_artifact_names.add(artifact_name.lower())
+            
+            # Then add any syft dependencies that weren't in pom.xml (e.g., transitive deps)
+            for syft_dep in dependencies_by_ecosystem['java']:
+                artifact_name = syft_dep['name'].lower()
+                if artifact_name not in syft_artifact_names:
+                    # Keep syft dependency as-is if not found in pom.xml
+                    enhanced_deps.append(syft_dep)
+            
+            # Replace the java dependencies with enhanced version
+            dependencies_by_ecosystem['java'] = enhanced_deps
+            
+            self.logger.info(f"Enhanced {len(parsed_java_deps)} Java dependencies with Maven coordinates")
+            
+        except Exception as e:
+            self.logger.debug(f"Could not enhance Java dependencies: {e}")
     
     def _map_language_to_ecosystem(self, language: str, artifact_type: str) -> Optional[str]:
         """

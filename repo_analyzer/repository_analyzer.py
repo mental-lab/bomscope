@@ -198,8 +198,8 @@ class RepositoryAnalyzer:
             self.logger.debug(f"Analyzing Dockerfiles in {repo_info.name}...")
             dockerfile_results = self.dockerfile_analyzer.analyze_repository(clone_path)
             
-            # Parse SBOM into our dependency format
-            dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data)
+            # Parse SBOM into our dependency format (with Java enhancement)
+            dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data, repo_path=clone_path)
             
             if not dependencies_by_ecosystem and not dockerfile_results['dockerfiles_found']:
                 self.logger.debug(f"No dependencies or Dockerfiles found in {repo_info.name}")

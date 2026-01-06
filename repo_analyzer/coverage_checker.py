@@ -157,7 +157,7 @@ class CoverageChecker:
         try:
             # Parse Maven coordinates
             if ':' not in package_name:
-                logging.warning(f"Invalid Maven coordinate format: {package_name}")
+                logging.debug(f"Skipping Java package without Maven coordinates: {package_name}")
                 return False
                 
             group_id, artifact_id = package_name.split(':', 1)
