@@ -233,14 +233,9 @@ class RepositoryAnalyzer:
                 repository=repo_info,
                 manifests=manifests,
                 total_dependencies=total_deps,
-                collection_timestamp=datetime.utcnow().isoformat()
+                collection_timestamp=datetime.utcnow().isoformat(),
+                dockerfile_adoption=dockerfile_results if dockerfile_results['dockerfiles_found'] > 0 else None
             )
-            
-            # Store Dockerfile adoption info (will be used by coverage checker)
-            if not hasattr(project, 'dockerfile_adoption'):
-                # Add as a note since ProjectAnalysis dataclass doesn't have this field
-                if dockerfile_results['adoption_detected']:
-                    project.note = f"Chainguard images: {', '.join(dockerfile_results['chainguard_images'][:3])}"
             
             return project
             

@@ -32,6 +32,7 @@ class ProjectAnalysis:
     total_dependencies: int
     collection_timestamp: str
     note: str = "Coverage analysis performed server-side by ecosystems-insights"
+    dockerfile_adoption: Optional[Dict[str, Any]] = None
 
 
 @dataclass

@@ -199,6 +199,25 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
             # Show ecosystem breakdown
             for eco, data in analysis.ecosystems_breakdown.items():
                 click.echo(f"   {eco.upper()}: {data['total_dependencies']} deps ({data['total_projects']} projects)")
+        
+        # Show Dockerfile adoption summary
+        repos_with_dockerfiles = 0
+        repos_with_chainguard = 0
+        total_chainguard_images = []
+        
+        for project in analysis.projects:
+            if hasattr(project, 'dockerfile_adoption') and project.dockerfile_adoption:
+                repos_with_dockerfiles += 1
+                if project.dockerfile_adoption.get('adoption_detected'):
+                    repos_with_chainguard += 1
+                    total_chainguard_images.extend(project.dockerfile_adoption.get('chainguard_images', []))
+        
+        if repos_with_dockerfiles > 0:
+            click.echo("\nDockerfile Adoption:")
+            click.echo(f"   Repos with Dockerfiles: {repos_with_dockerfiles}/{len(analysis.projects)}")
+            click.echo(f"   Repos using Chainguard: {repos_with_chainguard}/{repos_with_dockerfiles}")
+            if repos_with_chainguard > 0:
+                click.echo(f"   Total Chainguard images: {len(total_chainguard_images)}")
 
     click.echo(f"Report saved to: {output}")
 
