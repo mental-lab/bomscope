@@ -157,7 +157,7 @@ class CoverageChecker:
         try:
             # Parse Maven coordinates
             if ':' not in package_name:
-                logging.warning(f"Invalid Maven coordinate format: {package_name}")
+                logging.debug(f"Skipping Java package without Maven coordinates: {package_name}")
                 return False
                 
             group_id, artifact_id = package_name.split(':', 1)
@@ -198,26 +198,20 @@ class CoverageChecker:
             'python': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,  
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             },
             'java': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             },
             'javascript': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             }
         }
         

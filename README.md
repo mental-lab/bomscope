@@ -1,60 +1,28 @@
 # Ecosystems Evaluate
 
-Analyze dependencies across GitLab, GitHub, and Azure DevOps organizations.
+Dependency and container image analysis for GitLab, GitHub, and Azure DevOps.
 
-## Quick Deploy (Fork & Run)
+## Requirements
 
-**Want to deploy your own analysis dashboard?**
+- Python 3.8+
+- Git
+- Syft - Install: `brew install syft` or https://github.com/anchore/syft
 
-1. **Fork this repository**
-2. **Add GitHub Secrets** (Settings → Secrets and variables → Actions):
-   - `PLATFORM_TOKEN` - Your GitLab/GitHub/ADO access token
-   - `ORGANIZATION` - Organization name to analyze
-   - `PLATFORM` - Platform type (`gitlab`, `github`, or `ado`)
-   - `SOURCE` - Platform URL (e.g., `https://gitlab.com`)
-   - Optional: `CHAINGUARD_PYTHON_USERNAME`, `CHAINGUARD_PYTHON_PASSWORD`, `CHAINGUARD_JAVA_USERNAME`, `CHAINGUARD_JAVA_PASSWORD`
-3. **Enable GitHub Pages** (Settings → Pages → Source: GitHub Actions)
-4. **Run the workflow** (Actions → Analyze Dependencies and Deploy Viewer → Run workflow)
-5. **View results** at `https://YOUR-USERNAME.github.io/ecosystems-evaluate/`
-
-The dashboard will automatically load your analysis results!
-
-## Quick Start (Local)
-
-### 1. Install
+## Quick Start
 
 ```bash
+# Install
 git clone <repo-url>
 cd ecosystems-evaluate
-make install
+python3 -m venv venv
 source venv/bin/activate
-```
+pip install -r requirements.txt
 
-### 2. Configure
+# Analyze organization
+python3 main.py -p github -s https://github.com -t TOKEN -o org-name -O analysis.json --coverage -v
 
-Create `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your credentials:
-
-```bash
-PLATFORM=gitlab
-SOURCE=https://gitlab.com
-TOKEN=your_token_here
-ORG=your_org_name
-```
-
-### 3. Run
-
-```bash
-# Basic analysis
-python3 main.py -O analysis.json -v
-
-# With Chainguard coverage
-python3 main.py -O analysis.json --coverage -v
+# Analyze single repo
+python3 main.py -p github -s https://github.com -t TOKEN -o org-name -r repo-name -O analysis.json --coverage -v
 ```
 
 ## Supported Platforms
@@ -63,29 +31,37 @@ python3 main.py -O analysis.json --coverage -v
 - **GitHub** - github.com or Enterprise
 - **Azure DevOps** - dev.azure.com or Server
 
-## Supported Ecosystems
+## What Gets Detected
 
 - **Python** - requirements.txt, pyproject.toml, Pipfile, setup.py
 - **Java** - pom.xml, build.gradle
 
-## Chainguard Coverage (Optional)
+## Output
 
-To check which dependencies are available in Chainguard Libraries, add to `.env`:
+```
+Projects analyzed: 14/18
+Total dependencies: 9,219
 
-```bash
-CHAINGUARD_PYTHON_USERNAME=your_username
-CHAINGUARD_PYTHON_PASSWORD=your_token
-CHAINGUARD_JAVA_USERNAME=your_username
-CHAINGUARD_JAVA_PASSWORD=your_token
+Dockerfile Adoption:
+   Repos with Dockerfiles: 10/14
+   Repos using Chainguard: 6/10
+
+Coverage Analysis:
+   PYTHON: 18/24 available (75.0%)
 ```
 
-Get credentials from: https://console.chainguard.dev/
+## Chainguard Coverage (Optional)
 
-## CLI Options
+```bash
+export CHAINGUARD_PYTHON_USERNAME=username
+export CHAINGUARD_PYTHON_PASSWORD=token
+```
+
+Get credentials: https://console.chainguard.dev/
+
+## Options
 
 Run `python3 main.py --help` for all options.
-
-**Common flags:**
 - `-p, --platform` - Platform: gitlab, github, ado
 - `-o, --org` - Organization/group name
 - `-r, --repo` - Specific repository (optional)

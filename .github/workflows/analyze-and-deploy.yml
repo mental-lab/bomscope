@@ -41,6 +41,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+      
       - name: Run dependency analysis
         env:
           PLATFORM: ${{ github.event.inputs.platform || secrets.PLATFORM || 'github' }}
