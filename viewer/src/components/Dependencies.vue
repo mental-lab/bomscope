@@ -50,7 +50,6 @@
           <th>Ecosystem</th>
           <th>Project</th>
           <th v-if="data.coverage_analysis">Available in Chainguard</th>
-          <th v-if="data.coverage_analysis">Currently Adopted</th>
         </tr>
       </thead>
       <tbody>
@@ -66,10 +65,6 @@
           <td v-if="data.coverage_analysis">
             <span v-if="dep.covered" style="color: #10b981; font-weight: 600;">✓ Yes</span>
             <span v-else style="color: #ef4444; font-weight: 600;">✗ No</span>
-          </td>
-          <td v-if="data.coverage_analysis">
-            <span v-if="dep.adopted" style="color: #10b981; font-weight: 600;">✓ Yes</span>
-            <span v-else style="color: #6b7280;">—</span>
           </td>
         </tr>
       </tbody>
