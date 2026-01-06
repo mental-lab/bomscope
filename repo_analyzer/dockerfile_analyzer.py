@@ -43,7 +43,8 @@ class DockerfileAnalyzer:
             'dockerfiles_found': 0,
             'chainguard_images': [],
             'other_images': [],
-            'adoption_detected': False
+            'adoption_detected': False,
+            'dockerfiles': []  # List of {path, chainguard_images, other_images}
         }
         
         # Find all Dockerfiles
@@ -53,18 +54,30 @@ class DockerfileAnalyzer:
         if not dockerfiles:
             return results
         
+        repo = Path(repo_path)
+        
         # Analyze each Dockerfile
         for dockerfile_path in dockerfiles:
             images = self._parse_dockerfile(dockerfile_path)
             
+            dockerfile_info = {
+                'path': str(dockerfile_path.relative_to(repo)),
+                'chainguard_images': [],
+                'other_images': []
+            }
+            
             for image in images:
                 if self._is_chainguard_image(image):
                     results['chainguard_images'].append(image)
+                    dockerfile_info['chainguard_images'].append(image)
                     results['adoption_detected'] = True
                 else:
                     results['other_images'].append(image)
+                    dockerfile_info['other_images'].append(image)
+            
+            results['dockerfiles'].append(dockerfile_info)
         
-        # Remove duplicates
+        # Remove duplicates from summary lists
         results['chainguard_images'] = list(set(results['chainguard_images']))
         results['other_images'] = list(set(results['other_images']))
         
