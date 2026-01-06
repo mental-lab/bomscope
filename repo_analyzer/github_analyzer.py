@@ -99,18 +99,21 @@ class GitHubAnalyzer(PlatformAnalyzer):
             url = f"https://api.github.com/users/{account_name}"
         else:
             url = f"{self.source_url}/api/v3/users/{account_name}"
-        
         try:
-            response = self.session.get(url)
+            # Use requests directly with headers since session might not be configured yet
+            headers = self._get_auth_headers()
+            response = requests.get(url, headers=headers)
             response.raise_for_status()
             
             # Handle rate limiting
             self._handle_rate_limiting(response.headers, "GitHub")
             
             account_info = response.json()
-            return account_info.get('type', 'User')  # Default to User if type not found
+            account_type = account_info.get('type', 'User')
+            logging.info(f"Detected account type for {account_name}: {account_type}")
+            return account_type
         except Exception as e:
-            logging.debug(f"Could not determine account type for {account_name}: {e}")
+            logging.warning(f"Could not determine account type for {account_name}: {e}. Defaulting to Organization")
             # If we can't determine, default to Organization for backward compatibility
             return 'Organization'
     
