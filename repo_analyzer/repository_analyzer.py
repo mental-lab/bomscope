@@ -228,7 +228,7 @@ class RepositoryAnalyzer:
                     manifests.append(manifest)
                     total_deps += len(deps)
             
-            # Create project analysis with Dockerfile info
+            # Create project analysis with Dockerfile adoption info
             project = ProjectAnalysis(
                 repository=repo_info,
                 manifests=manifests,

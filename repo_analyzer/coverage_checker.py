@@ -198,26 +198,20 @@ class CoverageChecker:
             'python': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,  
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             },
             'java': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             },
             'javascript': {
                 'total': 0, 
                 'available': 0, 
-                'adopted': 0,
                 'missing': [], 
-                'percentage': 0.0,
-                'adoption_rate': 0.0
+                'percentage': 0.0
             }
         }
         

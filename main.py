@@ -154,20 +154,8 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
                 if ecosystem == 'adoption_indicators':
                     continue
                 if data['total'] > 0:
-                    click.echo(f"   {ecosystem.upper()}: {data['available']}/{data['total']} available ({data['percentage']}%) | {data['adopted']}/{data['total']} adopted ({data['adoption_rate']}%)")
+                    click.echo(f"   {ecosystem.upper()}: {data['available']}/{data['total']} available ({data['percentage']}%)")
             
-            # Show adoption indicators
-            if 'adoption_indicators' in coverage_results:
-                adoption_info = coverage_results['adoption_indicators']
-                if adoption_info:
-                    click.echo("\nAdoption Indicators:")
-                    click.echo(f"   ✓ {len(adoption_info)} projects show Chainguard adoption")
-                    for project, indicators in adoption_info.items():
-                        for indicator in indicators:
-                            click.echo(f"   - {project}: {indicator}")
-                else:
-                    click.echo("\nAdoption Indicators:")
-                    click.echo("   No Chainguard adoption detected")
 
     # Save results
     if input_file:
@@ -202,21 +190,21 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
         
         # Show Dockerfile adoption summary
         repos_with_dockerfiles = 0
-        repos_with_chainguard = 0
+        repos_with_chainguard_images = 0
         total_chainguard_images = []
         
         for project in analysis.projects:
             if hasattr(project, 'dockerfile_adoption') and project.dockerfile_adoption:
                 repos_with_dockerfiles += 1
                 if project.dockerfile_adoption.get('adoption_detected'):
-                    repos_with_chainguard += 1
+                    repos_with_chainguard_images += 1
                     total_chainguard_images.extend(project.dockerfile_adoption.get('chainguard_images', []))
         
         if repos_with_dockerfiles > 0:
             click.echo("\nDockerfile Adoption:")
             click.echo(f"   Repos with Dockerfiles: {repos_with_dockerfiles}/{len(analysis.projects)}")
-            click.echo(f"   Repos using Chainguard: {repos_with_chainguard}/{repos_with_dockerfiles}")
-            if repos_with_chainguard > 0:
+            click.echo(f"   Repos using Chainguard: {repos_with_chainguard_images}/{repos_with_dockerfiles}")
+            if repos_with_chainguard_images > 0:
                 click.echo(f"   Total Chainguard images: {len(total_chainguard_images)}")
 
     click.echo(f"Report saved to: {output}")
