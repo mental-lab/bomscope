@@ -42,33 +42,42 @@
       </div>
     </div>
     
-    <table>
-      <thead>
-        <tr>
-          <th>Dependency</th>
-          <th>Version</th>
-          <th>Ecosystem</th>
-          <th>Project</th>
-          <th v-if="data.coverage_analysis">Available in Chainguard</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="dep in filteredDependencies" :key="dep.id">
-          <td><strong>{{ dep.name }}</strong></td>
-          <td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px;">{{ dep.version }}</code></td>
-          <td>
-            <span :class="['badge', `badge-${dep.ecosystem}`]">
-              {{ dep.ecosystem }}
-            </span>
-          </td>
-          <td style="font-size: 0.875rem; color: #6b7280;">{{ dep.project }}</td>
-          <td v-if="data.coverage_analysis">
-            <span v-if="dep.covered" style="color: #10b981; font-weight: 600;">✓ Yes</span>
-            <span v-else style="color: #ef4444; font-weight: 600;">✗ No</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div style="overflow-x: auto;">
+      <table style="table-layout: fixed; width: 100%;">
+        <colgroup>
+          <col style="width: 30%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+          <col style="width: 25%;">
+          <col v-if="data.coverage_analysis" style="width: 15%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Dependency</th>
+            <th>Version</th>
+            <th>Ecosystem</th>
+            <th>Project</th>
+            <th v-if="data.coverage_analysis">Available in Chainguard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="dep in filteredDependencies" :key="dep.id">
+            <td style="word-break: break-word;"><strong>{{ dep.name }}</strong></td>
+            <td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">{{ dep.version }}</code></td>
+            <td>
+              <span :class="['badge', `badge-${dep.ecosystem}`]">
+                {{ dep.ecosystem }}
+              </span>
+            </td>
+            <td style="font-size: 0.875rem; color: #6b7280; word-break: break-word;">{{ dep.project }}</td>
+            <td v-if="data.coverage_analysis">
+              <span v-if="dep.covered" style="color: #10b981; font-weight: 600;">✓ Yes</span>
+              <span v-else style="color: #ef4444; font-weight: 600;">✗ No</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     
     <div v-if="filteredDependencies.length === 0" style="text-align: center; padding: 2rem; color: #6b7280;">
       No dependencies found
