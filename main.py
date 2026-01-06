@@ -160,17 +160,31 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
     # Save results
     if input_file:
         # In coverage-only mode, merge coverage results with original data
+        import os
         output_data = analysis._raw_data.copy()
         if coverage:
             output_data['coverage_analysis'] = coverage_results
+        
+        # Ensure output directory exists
+        output_dir = os.path.dirname(output)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+        
         with open(output, 'w') as f:
             json.dump(output_data, f, indent=2, default=str)
     else:
         # In analysis mode, convert to dict and add coverage if present
         from dataclasses import asdict
+        import os
         output_data = asdict(analysis)
         if coverage and hasattr(analysis, 'coverage_analysis') and analysis.coverage_analysis:
             output_data['coverage_analysis'] = analysis.coverage_analysis
+        
+        # Ensure output directory exists
+        output_dir = os.path.dirname(output)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+        
         with open(output, 'w') as f:
             json.dump(output_data, f, indent=2, default=str)
 
