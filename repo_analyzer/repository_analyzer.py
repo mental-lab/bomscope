@@ -17,8 +17,10 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo
+from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo, DependencyInfo
 from .platform_analyzers import get_analyzer
+from .git_cloner import GitCloner
+from .syft_analyzer import SyftAnalyzer
 
 
 class RepositoryAnalyzer:
@@ -55,8 +57,19 @@ class RepositoryAnalyzer:
                 f"Supported: {', '.join(self.SUPPORTED_PLATFORMS)}"
             )
 
-        # Create platform-specific analyzer (with security validation)
+        # Create platform-specific analyzer (only for listing repos)
         self._analyzer = get_analyzer(self.platform, self.url, self.token)
+        
+        # Create git cloner and syft analyzer
+        self.git_cloner = GitCloner(token=self.token)
+        self.syft_analyzer = SyftAnalyzer()
+        
+        # Check dependencies
+        if not self.git_cloner.check_git_available():
+            raise RuntimeError("git is not installed or not available in PATH")
+        
+        if not self.syft_analyzer.check_syft_available():
+            raise RuntimeError("syft is not installed or not available in PATH. Install from: https://github.com/anchore/syft")
 
     def analyze_organization(self, organization: str) -> OrganizationAnalysis:
         """Analyze all repositories in an organization for dependencies.
@@ -157,16 +170,57 @@ class RepositoryAnalyzer:
     def _analyze_single_repository(
         self, repo_info: RepositoryInfo
     ) -> Optional[ProjectAnalysis]:
-        """Analyze a single repository for dependency manifests."""
+        """Analyze a single repository using git clone + syft."""
+        clone_path = None
         try:
-            # Discover dependency manifests
-            manifests = self._analyzer.discover_manifests(repo_info)
+            # Clone repository
+            self.logger.debug(f"Cloning {repo_info.name}...")
+            clone_path = self.git_cloner.shallow_clone(
+                repo_info.url,
+                branch=repo_info.default_branch
+            )
             
-            if not manifests:
-                self.logger.debug(f"No dependency manifests found in {repo_info.name}")
+            if not clone_path:
+                self.logger.warning(f"Failed to clone {repo_info.name}")
                 return None
             
-            total_deps = sum(len(manifest.dependencies) for manifest in manifests)
+            # Run syft analysis
+            self.logger.debug(f"Running syft on {repo_info.name}...")
+            sbom_data = self.syft_analyzer.analyze_repository(clone_path)
+            
+            if not sbom_data:
+                self.logger.warning(f"Syft analysis failed for {repo_info.name}")
+                return None
+            
+            # Parse SBOM into our dependency format
+            dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data)
+            
+            if not dependencies_by_ecosystem:
+                self.logger.debug(f"No dependencies found in {repo_info.name}")
+                return None
+            
+            # Convert to manifest format
+            manifests = []
+            total_deps = 0
+            
+            for ecosystem, deps in dependencies_by_ecosystem.items():
+                if deps:
+                    # Get unique file paths from dependencies
+                    file_paths = set()
+                    for dep in deps:
+                        for loc in dep.get('locations', []):
+                            if loc:
+                                file_paths.add(loc)
+                    
+                    manifest = DependencyInfo(
+                        file_path=', '.join(sorted(file_paths)[:3]) if file_paths else f'{ecosystem} dependencies',
+                        file_type='sbom',
+                        ecosystem=ecosystem,
+                        dependencies=[{'name': d['name'], 'version': d['version']} for d in deps],
+                        build_tool='syft'
+                    )
+                    manifests.append(manifest)
+                    total_deps += len(deps)
             
             return ProjectAnalysis(
                 repository=repo_info,
@@ -178,6 +232,10 @@ class RepositoryAnalyzer:
         except Exception as e:
             self.logger.error(f"Failed to analyze {repo_info.name}: {e}")
             return None
+        finally:
+            # Always cleanup cloned repository
+            if clone_path:
+                self.git_cloner.cleanup(clone_path)
     
     def _calculate_ecosystems_breakdown(self, projects: List[ProjectAnalysis]) -> Dict[str, Dict[str, Any]]:
         """Calculate ecosystems breakdown from projects."""
