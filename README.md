@@ -33,9 +33,8 @@ python3 main.py -p github -s https://github.com -t TOKEN -o org-name -r repo-nam
 
 ## What Gets Detected
 
-- All ecosystems: Python, Java, JavaScript, Go, Rust, Ruby, .NET, Swift, Elixir, PHP, and more
-- Dockerfile base images and Chainguard adoption
-- GitHub Actions and workflows
+- **Python** - requirements.txt, pyproject.toml, Pipfile, setup.py
+- **Java** - pom.xml, build.gradle
 
 ## Output
 
