@@ -36,6 +36,15 @@ class ProjectAnalysis:
 
 
 @dataclass
+class SkippedRepository:
+    """Information about a skipped repository."""
+    name: str
+    url: str
+    reason: str
+    error_details: Optional[str] = None
+
+
+@dataclass
 class OrganizationAnalysis:
     """Analysis results for an entire organization."""
     organization_name: str
@@ -46,4 +55,9 @@ class OrganizationAnalysis:
     total_dependencies: int
     projects: List[ProjectAnalysis]
     ecosystems_breakdown: Dict[str, Dict[str, Any]]
+    skipped_projects: List[SkippedRepository] = None
     coverage_analysis: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        if self.skipped_projects is None:
+            self.skipped_projects = []

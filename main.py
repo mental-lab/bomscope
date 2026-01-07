@@ -198,7 +198,26 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
         else:
             click.echo(f"   Projects analyzed: {analysis.analyzed_projects}/{analysis.total_projects}")
             click.echo(f"   Total dependencies: {analysis.total_dependencies}")
+            
+            # Show skipped projects summary
+            if hasattr(analysis, 'skipped_projects') and analysis.skipped_projects:
+                click.echo(f"\n   Skipped projects: {len(analysis.skipped_projects)}")
+                
+                # Group by reason
+                skip_reasons = {}
+                for skipped in analysis.skipped_projects:
+                    reason = skipped.reason
+                    if reason not in skip_reasons:
+                        skip_reasons[reason] = []
+                    skip_reasons[reason].append(skipped.name)
+                
+                for reason, repos in skip_reasons.items():
+                    click.echo(f"      {reason}: {len(repos)}")
+                    for repo in repos:
+                        click.echo(f"         - {repo}")
+            
             # Show ecosystem breakdown
+            click.echo("")
             for eco, data in analysis.ecosystems_breakdown.items():
                 click.echo(f"   {eco.upper()}: {data['total_dependencies']} deps ({data['total_projects']} projects)")
         

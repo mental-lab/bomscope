@@ -17,7 +17,7 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo, DependencyInfo
+from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo, DependencyInfo, SkippedRepository
 from .platform_analyzers import get_analyzer
 from .git_cloner import GitCloner
 from .syft_analyzer import SyftAnalyzer
@@ -152,8 +152,26 @@ class RepositoryAnalyzer:
                         self.logger.info(
                             f"{repo.name}: {project_analysis.total_dependencies} dependencies"
                         )
+                    else:
+                        # Repository was skipped (no dependencies found)
+                        skipped = SkippedRepository(
+                            name=repo.name,
+                            url=repo.url,
+                            reason="No dependencies found",
+                            error_details="Repository analyzed but no manifest files or dependencies detected"
+                        )
+                        organization_analysis.skipped_projects.append(skipped)
+                        self.logger.info(f"{repo.name}: Skipped - no dependencies found")
 
                 except Exception as e:
+                    # Repository analysis failed
+                    skipped = SkippedRepository(
+                        name=repo.name,
+                        url=repo.url,
+                        reason="Analysis failed",
+                        error_details=str(e)
+                    )
+                    organization_analysis.skipped_projects.append(skipped)
                     self.logger.error(f"Failed to analyze {repo.name}: {e}")
 
         # Calculate ecosystems breakdown
@@ -201,7 +219,11 @@ class RepositoryAnalyzer:
             # Parse SBOM into our dependency format (with Java enhancement)
             dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data, repo_path=clone_path)
             
-            if not dependencies_by_ecosystem and not dockerfile_results['dockerfiles_found']:
+            # Check if we found anything useful
+            has_dependencies = dependencies_by_ecosystem and any(len(deps) > 0 for deps in dependencies_by_ecosystem.values())
+            has_dockerfiles = dockerfile_results['dockerfiles_found'] > 0
+            
+            if not has_dependencies and not has_dockerfiles:
                 self.logger.debug(f"No dependencies or Dockerfiles found in {repo_info.name}")
                 return None
             
