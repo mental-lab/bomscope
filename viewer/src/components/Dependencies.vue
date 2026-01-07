@@ -63,9 +63,9 @@
         <tbody>
           <tr v-for="dep in filteredDependencies" :key="dep.id">
             <td style="word-break: break-word;"><strong>{{ dep.name }}</strong></td>
-            <td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">{{ dep.version }}</code></td>
+            <td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">{{ formatVersion(dep.version) }}</code></td>
             <td>
-              <span :class="['badge', `badge-${dep.ecosystem}`]">
+              <span class="badge" :style="getBadgeStyle(dep.ecosystem)">
                 {{ dep.ecosystem }}
               </span>
             </td>
@@ -205,6 +205,58 @@ export default {
       return filteredDependencies.value.filter(dep => !dep.covered).length
     })
 
+    const formatVersion = (version) => {
+      if (!version || version === 'N/A') return 'N/A'
+      
+      // Shorten SHA256 hashes (common in container images)
+      if (version.startsWith('sha256:')) {
+        const hash = version.substring(7) // Remove 'sha256:' prefix
+        return '...' + hash.slice(-8) // Show last 8 characters
+      }
+      
+      // Shorten long SHA hashes (40+ hex characters)
+      if (version.length > 40 && /^[a-f0-9]+$/i.test(version)) {
+        return '...' + version.slice(-8) // Show last 8 characters
+      }
+      
+      return version
+    }
+
+    const getBadgeStyle = (ecosystem) => {
+      // Predefined colors for common ecosystems
+      const colorMap = {
+        'python': { bg: '#dbeafe', color: '#1e40af' },
+        'java': { bg: '#fef3c7', color: '#92400e' },
+        'javascript': { bg: '#fce7f3', color: '#831843' },
+        'go': { bg: '#dbeafe', color: '#1e3a8a' },
+        'ruby': { bg: '#fee2e2', color: '#991b1b' },
+        'dotnet': { bg: '#e0e7ff', color: '#3730a3' },
+        'rust': { bg: '#fed7aa', color: '#9a3412' },
+        'php': { bg: '#ddd6fe', color: '#5b21b6' },
+        'github-action': { bg: '#f3f4f6', color: '#374151' },
+        'github-action-workflow': { bg: '#f3f4f6', color: '#374151' }
+      }
+
+      const eco = ecosystem.toLowerCase()
+      if (colorMap[eco]) {
+        return {
+          background: colorMap[eco].bg,
+          color: colorMap[eco].color
+        }
+      }
+
+      // Generate color from ecosystem name for unknown types
+      const hash = ecosystem.split('').reduce((acc, char) => {
+        return char.charCodeAt(0) + ((acc << 5) - acc)
+      }, 0)
+      
+      const hue = Math.abs(hash) % 360
+      return {
+        background: `hsl(${hue}, 70%, 90%)`,
+        color: `hsl(${hue}, 70%, 30%)`
+      }
+    }
+
     return {
       searchQuery,
       ecosystemFilter,
@@ -213,7 +265,9 @@ export default {
       allDependencies,
       filteredDependencies,
       availableCount,
-      missingCount
+      missingCount,
+      formatVersion,
+      getBadgeStyle
     }
   }
 }
