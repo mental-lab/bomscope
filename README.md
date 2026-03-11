@@ -66,6 +66,7 @@ Run `python3 main.py --help` for all options.
 - `-p, --platform` - Platform: gitlab, github, ado
 - `-o, --org` - Organization/group name
 - `-r, --repo` - Specific repository (optional)
+- `-b, --branch` - Specific branch to analyze (default: repository default branch)
 - `-O, --output` - Output file path
 - `--coverage` - Include Chainguard coverage analysis
 - `-v, --verbose` - Show progress

@@ -73,11 +73,12 @@ class RepositoryAnalyzer:
         if not self.syft_analyzer.check_syft_available():
             raise RuntimeError("syft is not installed or not available in PATH. Install from: https://github.com/anchore/syft")
 
-    def analyze_organization(self, organization: str) -> OrganizationAnalysis:
+    def analyze_organization(self, organization: str, branch: Optional[str] = None) -> OrganizationAnalysis:
         """Analyze all repositories in an organization for dependencies.
 
         Args:
             organization: Organization/group name to analyze
+            branch: Specific branch to analyze (default: repository default branch)
 
         Returns:
             OrganizationAnalysis with all discovered dependencies
@@ -93,13 +94,14 @@ class RepositoryAnalyzer:
         self.logger.info(f"Found {len(repositories)} repositories")
 
         # Analyze all repositories
-        return self._analyze_repositories(organization, repositories)
+        return self._analyze_repositories(organization, repositories, branch=branch)
 
-    def analyze_repository(self, repository: str) -> OrganizationAnalysis:
+    def analyze_repository(self, repository: str, branch: Optional[str] = None) -> OrganizationAnalysis:
         """Analyze a single repository for dependencies.
 
         Args:
             repository: Repository identifier (e.g., 'group/project' for GitLab)
+            branch: Specific branch to analyze (default: repository default branch)
 
         Returns:
             OrganizationAnalysis with discovered dependencies
@@ -114,10 +116,10 @@ class RepositoryAnalyzer:
         repo_info = self._analyzer.get_single_repository(repository)
 
         # Analyze it
-        return self._analyze_repositories(repository, [repo_info])
+        return self._analyze_repositories(repository, [repo_info], branch=branch)
     
     def _analyze_repositories(
-        self, org_name: str, repositories: List[RepositoryInfo]
+        self, org_name: str, repositories: List[RepositoryInfo], branch: Optional[str] = None
     ) -> OrganizationAnalysis:
         """Analyze a list of repositories for dependencies (internal method)."""
         organization_analysis = OrganizationAnalysis(
@@ -134,7 +136,7 @@ class RepositoryAnalyzer:
         # Analyze repositories in parallel for speed
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_repo = {
-                executor.submit(self._analyze_single_repository, repo): repo
+                executor.submit(self._analyze_single_repository, repo, branch): repo
                 for repo in repositories
             }
 
@@ -188,16 +190,18 @@ class RepositoryAnalyzer:
         return organization_analysis
     
     def _analyze_single_repository(
-        self, repo_info: RepositoryInfo
+        self, repo_info: RepositoryInfo, branch: Optional[str] = None
     ) -> Optional[ProjectAnalysis]:
         """Analyze a single repository using git clone + syft."""
         clone_path = None
         try:
             # Clone repository
-            self.logger.debug(f"Cloning {repo_info.name}...")
+            # Use specified branch if provided, otherwise use repository's default branch
+            target_branch = branch if branch else repo_info.default_branch
+            self.logger.debug(f"Cloning {repo_info.name} (branch: {target_branch})...")
             clone_path = self.git_cloner.shallow_clone(
                 repo_info.url,
-                branch=repo_info.default_branch
+                branch=target_branch
             )
             
             if not clone_path:

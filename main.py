@@ -24,11 +24,12 @@ from repo_analyzer.coverage_checker import CoverageChecker
 @click.option('-t', '--token', help='Personal access token')
 @click.option('-o', '--org', help='Organization/group name to analyze')
 @click.option('-r', '--repo', help='Specific repository to analyze (format: owner/repo for GitHub, group/project for GitLab)')
+@click.option('-b', '--branch', help='Specific branch to analyze (default: repository default branch)')
 @click.option('-O', '--output', required=True, help='Output JSON file for analysis')
 @click.option('-w', '--workers', type=int, default=4, help='Number of parallel workers')
 @click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
 @click.option('--coverage', is_flag=True, help='Include Chainguard coverage and adoption analysis')
-def cli(input_file: str, platform: str, source: str, token: str, org: str, repo: str, output: str, workers: int, verbose: bool, coverage: bool):
+def cli(input_file: str, platform: str, source: str, token: str, org: str, repo: str, branch: str, output: str, workers: int, verbose: bool, coverage: bool):
     """Analyze organization or repository for dependency inventory.
 
     This command can operate in two modes:
@@ -52,6 +53,9 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
 
         # Analyze specific repository
         python3 main.py -p github -s https://github.com -t $TOKEN -o myorg -r owner/repo -O analysis.json
+        
+        # Analyze specific branch
+        python3 main.py -p github -s https://github.com -t $TOKEN -o myorg -b develop -O analysis.json
     """
     start_time = time.time()
     
@@ -122,15 +126,17 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
                     repo_spec = repo
                 
                 if verbose:
-                    click.echo(f"Analyzing repository {repo_spec} on {platform}")
-                analysis = analyzer.analyze_repository(repo_spec)
+                    branch_msg = f" (branch: {branch})" if branch else ""
+                    click.echo(f"Analyzing repository {repo_spec} on {platform}{branch_msg}")
+                analysis = analyzer.analyze_repository(repo_spec, branch=branch)
             else:
                 # Analyze entire organization
                 if verbose:
-                    click.echo(f"Analyzing {org} organization on {platform}")
+                    branch_msg = f" (branch: {branch})" if branch else ""
+                    click.echo(f"Analyzing {org} organization on {platform}{branch_msg}")
                     click.echo(f"Using {workers} parallel workers")
 
-                analysis = analyzer.analyze_organization(org)
+                analysis = analyzer.analyze_organization(org, branch=branch)
         
         except Exception as e:
             click.echo(f"Analysis failed: {e}", err=True)
