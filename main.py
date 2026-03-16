@@ -166,7 +166,6 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
     # Save results
     if input_file:
         # In coverage-only mode, merge coverage results with original data
-        import os
         output_data = analysis._raw_data.copy()
         if coverage:
             output_data['coverage_analysis'] = coverage_results
@@ -181,7 +180,6 @@ def cli(input_file: str, platform: str, source: str, token: str, org: str, repo:
     else:
         # In analysis mode, convert to dict and add coverage if present
         from dataclasses import asdict
-        import os
         output_data = asdict(analysis)
         if coverage and hasattr(analysis, 'coverage_analysis') and analysis.coverage_analysis:
             output_data['coverage_analysis'] = analysis.coverage_analysis
