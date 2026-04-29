@@ -34,7 +34,7 @@ class AzureDevOpsAnalyzer(PlatformAnalyzer):
         # (Base class already handles session, SSL, and retry logic)
         
         # API version parameter
-        self.api_params = {'api-version': '7.2'}
+        self.api_params = {'api-version': '7.2-preview'}
     
     def _get_auth_headers(self) -> dict[str, str]:
         """Azure DevOps uses basic authentication with PAT tokens."""
