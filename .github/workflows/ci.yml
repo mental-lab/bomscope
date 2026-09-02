@@ -37,7 +37,7 @@ jobs:
         run: docker compose build web analyzer
 
       - name: Scan container image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: bomscope-web:latest
           format: table
