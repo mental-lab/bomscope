@@ -1,9 +1,9 @@
-# Ecosystems Evaluate - Makefile
+# bomscope - Makefile
 
 .PHONY: help venv install test clean clean-all
 
 help:
-	@echo "Ecosystems Evaluate - Dependency Analysis Tool"
+	@echo "bomscope - supply-chain intelligence for your org's code"
 	@echo ""
 	@echo "Commands:"
 	@echo "  make venv       Create virtual environment"
@@ -26,7 +26,7 @@ venv:
 install: venv
 	@echo "Installing dependencies..."
 	@. venv/bin/activate && pip install --upgrade pip
-	@. venv/bin/activate && pip install requests packaging click pydantic
+	@. venv/bin/activate && pip install -r requirements.txt
 	@echo ""
 	@echo "Installation complete!"
 

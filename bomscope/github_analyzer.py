@@ -61,7 +61,7 @@ class GitHubAnalyzer(PlatformAnalyzer):
                     url = f"{self.source_url}/api/v3/users/{org_name}/repos"
             
             params = {'page': page, 'per_page': per_page}
-            response = self.session.get(url, params=params)
+            response = self.session.get(url, params=params, timeout=30)
             response.raise_for_status()
             
             # Handle rate limiting
@@ -102,7 +102,7 @@ class GitHubAnalyzer(PlatformAnalyzer):
         try:
             # Use requests directly with headers since session might not be configured yet
             headers = self._get_auth_headers()
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             
             # Handle rate limiting
@@ -131,7 +131,7 @@ class GitHubAnalyzer(PlatformAnalyzer):
         else:
             url = f"{self.source_url}/api/v3/repos/{repo_spec}"
         
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=30)
         response.raise_for_status()
         
         # Handle rate limiting
@@ -173,7 +173,7 @@ class GitHubAnalyzer(PlatformAnalyzer):
                 url = f"{self.source_url}/api/v3/repos/{repo_spec}/contents/{file_path}"
             
             params = {'ref': repo_info.default_branch}
-            response = self.session.get(url, params=params)
+            response = self.session.get(url, params=params, timeout=30)
             if response.status_code == 200:
                 # Handle rate limiting
                 self._handle_rate_limiting(response.headers, "GitHub")

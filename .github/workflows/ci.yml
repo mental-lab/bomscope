@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint / smoke-test Python
+        run: python -m compileall bomscope main.py -q
+
+      - name: Unit tests (pytest)
+        run: python -m pytest tests/ -q
+
+      - name: Audit Python dependencies (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+      - name: Build Docker image
+        run: docker compose build web analyzer
+
+      - name: Scan container image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: bomscope-web:latest
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Generate SBOM (syft)
+        uses: anchore/sbom-action@v0.19.0
+        with:
+          image: bomscope-web:latest
+          artifact-name: bomscope-sbom.spdx.json
+
+      - name: Start stack and wait for health
+        run: |
+          docker compose up -d
+          timeout 120 bash -c 'until docker inspect -f "{{.State.Health.Status}}" bomscope-postgres 2>/dev/null | grep -q healthy; do sleep 3; done'
+
+      - name: API smoke test
+        run: |
+          sleep 10
+          curl -fsS http://localhost:8000/api/health | grep -q '"ok"'
+          curl -fsS http://localhost:8000/ > /dev/null
+
+      - name: Landing page sanity
+        run: |
+          test -f landing/index.html
+          grep -q "bomscope" landing/index.html

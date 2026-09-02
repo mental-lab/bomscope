@@ -1,0 +1,95 @@
+# bomscope — supply chain intelligence for your org's code.
+#
+#   docker compose up -d        # dashboard on http://localhost:8000
+#
+# First visit: open Settings in the dashboard and paste your platform token —
+# no .env file needed. Optional env overrides: POSTGRES_PASSWORD,
+# GITHUB_TOKEN, PLATFORM, SOURCE, ORG, TRUSTED_REGISTRIES, SCAN_INTERVAL_HOURS,
+# SCAN_WORKERS, REPO_CACHE_DIR, BOMSCOPE_SECRET_KEY, CORS_ORIGINS.
+
+# Fixed project name so volumes/containers are bomscope-* regardless of the
+# directory the repo was cloned into.
+name: bomscope
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bomscope-postgres
+    environment:
+      POSTGRES_USER: bomscope
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bomscope}
+      POSTGRES_DB: bomscope
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bomscope -d bomscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - bomscope
+
+  web:
+    image: bomscope-web:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bomscope-web
+    environment:
+      DATABASE_URL: postgresql+pg8000://bomscope:${POSTGRES_PASSWORD:-bomscope}@postgres:5432/bomscope
+      SCAN_INTERVAL_HOURS: ${SCAN_INTERVAL_HOURS:-24}
+      # Platform config enables the web service to kick off scans in the
+      # background (e.g. when dashboard Settings change).
+      PLATFORM: ${PLATFORM:-github}
+      SOURCE: ${SOURCE:-https://github.com}
+      TOKEN: ${GITHUB_TOKEN:-}
+      ORG: ${ORG:-}
+      SCAN_WORKERS: ${SCAN_WORKERS:-4}
+      # BOMSCOPE_SECRET_KEY: set in production; otherwise a key is generated
+      # and stored in /data (bomscope-data volume) for credential encryption.
+      BOMSCOPE_SECRET_KEY: ${BOMSCOPE_SECRET_KEY:-}
+    volumes:
+      # Persistent repo mirror cache (delta fetches on re-scan) + credential key
+      - data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bomscope
+
+  analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bomscope-analyzer
+    entrypoint: ["python", "main.py"]
+    environment:
+      DATABASE_URL: postgresql+pg8000://bomscope:${POSTGRES_PASSWORD:-bomscope}@postgres:5432/bomscope
+      TOKEN: ${GITHUB_TOKEN:-}
+      TRUSTED_REGISTRIES: ${TRUSTED_REGISTRIES:-}
+    volumes:
+      - ./output:/home/nonroot/output
+      - grype-cache:/home/nonroot/.cache/grype
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - analyze
+    networks:
+      - bomscope
+    # Default: show help. Override to run a scan.
+    command: ["--help"]
+
+volumes:
+  grype-cache:
+  postgres-data:
+  # Persistent /data for the web service (repo mirror cache, credential key)
+  data:
+    name: bomscope_app-data
+
+networks:
+  bomscope:

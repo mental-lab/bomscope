@@ -1,4 +1,12 @@
-requests>=2.31.0
-python-dotenv>=1.0.0
-click>=8.1.0
-packaging>=21.0
+# Pinned for reproducible builds and meaningful pip-audit results.
+# Dependabot bumps these; see .github/dependabot.yml.
+requests==2.34.2
+python-dotenv==1.2.3
+click==8.5.0
+packaging==26.3
+sqlalchemy==2.0.52
+pg8000==1.31.5
+fastapi==0.141.1
+uvicorn==0.52.4
+cryptography==50.0.1
+pytest==8.3.4

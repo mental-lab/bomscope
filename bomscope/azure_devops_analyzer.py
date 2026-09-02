@@ -62,7 +62,7 @@ class AzureDevOpsAnalyzer(PlatformAnalyzer):
         
         while True:
             try:
-                response = self.session.get(url, params=request_params)
+                response = self.session.get(url, params=request_params, timeout=30)
                 response.raise_for_status()
                 
                 data = response.json()
@@ -178,7 +178,7 @@ class AzureDevOpsAnalyzer(PlatformAnalyzer):
             
             repo_url = f"{self.source_url}/{org_name}/{project_name}/_apis/git/repositories/{repo_name}"
             
-            response = self.session.get(repo_url, params=self.api_params)
+            response = self.session.get(repo_url, params=self.api_params, timeout=30)
             response.raise_for_status()
             
             repo_data = response.json()
@@ -223,7 +223,7 @@ class AzureDevOpsAnalyzer(PlatformAnalyzer):
                 'includeContent': 'true'
             }
             
-            response = self.session.get(file_url, params=params)
+            response = self.session.get(file_url, params=params, timeout=30)
             
             if response.status_code == 404:
                 return None

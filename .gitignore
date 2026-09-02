@@ -44,6 +44,9 @@ Thumbs.db
 # Environment and credentials
 .env
 .netrc
+.secret
+**/bomscope.db
+nohup.out
 
 # Analysis outputs
 analysis.json
