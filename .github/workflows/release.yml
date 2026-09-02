@@ -20,7 +20,7 @@ jobs:
       - name: Verify tag matches package version
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          PKG=$(grep -P '^version = "\K[^"]+' pyproject.toml)
+          PKG=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)
           test "$TAG" = "$PKG" || { echo "tag $TAG != pyproject version $PKG"; exit 1; }
 
       - name: Unit tests (pytest)
