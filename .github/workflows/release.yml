@@ -51,7 +51,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM (syft / SPDX)
-        uses: anchore/sbom-action@v0.19.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           image: ghcr.io/${{ github.repository }}/bomscope-web:${{ github.ref_name }}
           artifact-name: bomscope-sbom-${{ github.ref_name }}.spdx.json
