@@ -31,7 +31,7 @@ USER 65532
 WORKDIR /home/nonroot
 COPY requirements.txt /home/nonroot/requirements.txt
 RUN python -m venv /home/nonroot/venv \
- && /home/nonroot/venv/bin/pip install --upgrade pip \
+ && /home/nonroot/venv/bin/pip install --upgrade pip "setuptools>=78.1.1" \
  && /home/nonroot/venv/bin/pip install --no-cache-dir -r /home/nonroot/requirements.txt
 
 # ---------- Stage 3: minimal runtime (no shell, no apk) ----------
