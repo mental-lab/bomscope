@@ -83,6 +83,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: notes.md
-          files: bomscope-sbom-${{ github.ref_name }}.spdx.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attach SBOM to release
+        run: |
+          ls bomscope-sbom-*.spdx.json
+          for f in bomscope-sbom-*.spdx.json; do
+            gh release upload "$GITHUB_REF_NAME" "$f" --clobber
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
