@@ -32,17 +32,19 @@ Tokens — named tokens with `admin`/`viewer` scope, configurable expiry
 Storage = SHA-256 digest + 8-char prefix (raw token never persisted or
 returned again). Creating the first live token closes reads instance-wide.
 
-## Phase 2 — Release mechanics — ✔ LANDED 2026-09-02 (code side; first tagged release pending)
+## Phase 2 — Release mechanics — ✔ SHIPPED v0.2.0, 2026-09-02
 
-- ✔ CI runs pytest suite (was compile-only); pytest pinned in requirements
-- ✔ `release.yml`: tag-triggered multi-arch ghcr.io push, cosign keyless
-  signing, SPDX SBOM attached to the GitHub release, tag↔pyproject version
-  guard, changelog-driven release notes
-- ✔ LICENSE (Apache-2.0), CONTRIBUTING.md, dependabot (existed); CHANGELOG.md
-  seeded with 0.1.0/0.2.0
-- ✔ Semver bumped to 0.2.0 (pyproject + package `__version__`)
-- Remaining: push + tag `v0.2.0` when ready (needs the repo remote), then
-  compose can pin to `ghcr.io/…/bomscope-web:v0.2.0`
+- ✔ Repo live at github.com/mental-lab/bomscope (public), branch renamed
+  master→main, commits authored as mental-lab noreply
+- ✔ v0.2.0 released: github.com/mental-lab/bomscope/releases/tag/v0.2.0
+  with changelog-extracted notes + SPDX SBOM asset
+- ✔ Multi-arch image public on ghcr.io/mental-lab/bomscope/bomscope-web,
+  cosign keyless-signed
+- ✔ CI green: pytest, pip-audit (pytest→9.0.3 for PYSEC-2026-1845), Trivy
+  gate (`.trivyignore` documents the pip-vendored msgpack/setuptools
+  findings — unreachable from the app venv), syft SBOM, stack-boot smoke test
+- Release flow from here: bump version in pyproject + `__version__` +
+  CHANGELOG, `git tag vX.Y.Z && git push origin vX.Y.Z`
 
 ## Phase 3 — Professional face (draugr.dev-grade polish)
 
