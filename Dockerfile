@@ -37,6 +37,13 @@ RUN python -m venv /home/nonroot/venv \
 # ---------- Stage 3: minimal runtime (no shell, no apk) ----------
 FROM cgr.dev/chainguard/python:latest
 
+# The Chainguard base ships its own site-packages (setuptools/msgpack) that
+# scanners flag; upgrade them past the known CVEs. Exec form because the
+# minimal runtime has no shell. Runs as root; default image user is 65532.
+USER root
+RUN ["pip", "install", "--no-cache-dir", "--upgrade", "setuptools>=78.1.1", "msgpack>=1.2.1"]
+USER 65532
+
 # Analyzer binaries from the Wolfi rootfs; venv and /data from pybuild
 COPY --from=pybuild /rootfs/ /
 COPY --from=pybuild /home/nonroot/venv /home/nonroot/venv
