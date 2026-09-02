@@ -1,0 +1,16 @@
+# Trivy suppressions for the bomscope-web image.
+#
+# Both findings below are inside pip 26.2.1's VENDORED dependency tree in the
+# Chainguard python base image (/usr/lib/python3.14/site-packages/pip/_vendor).
+# pip is a build-time tool: bomscope never imports it at runtime (the app runs
+# from its own venv at /home/nonroot/venv, which pins clean versions). Even the
+# latest upstream pip wheel still vendors these, so there is no upgrade path —
+# upgrading pip just re-installs the same vulnerable vendor snapshot.
+#
+# msgpack 1.1.2 vendored in pip — GHSA: MessagePack Unpacker OOB read.
+# Not our dependency graph; unreachable from bomscope code.
+GHSA-6v7p-g79w-8964
+#
+# setuptools 70.3.0 appears only in pip's vendored SBOM (bom.cdx.json).
+# The real runtime/venv setuptools is >=78.1.1 (pinned in Dockerfile).
+CVE-2025-47273

@@ -27,12 +27,6 @@ RUN mkdir -p /rootfs/etc/apk \
 # so it must be nonroot-owned in the image itself.
 RUN mkdir -p /data/repo-cache && chown -R 65532:65532 /data
 
-# The Chainguard python base ships its own site-packages (setuptools/msgpack)
-# that scanners flag; upgrade past the known CVEs in this (shelled) stage and
-# overlay them onto the minimal runtime below.
-USER root
-RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "msgpack>=1.2.1"
-
 USER 65532
 WORKDIR /home/nonroot
 COPY requirements.txt /home/nonroot/requirements.txt
@@ -42,9 +36,6 @@ RUN python -m venv /home/nonroot/venv \
 
 # ---------- Stage 3: minimal runtime (no shell, no apk) ----------
 FROM cgr.dev/chainguard/python:latest
-
-# Upgraded base site-packages from pybuild (minimal runtime has no pip/shell)
-COPY --from=pybuild /usr/lib/python3.14 /usr/lib/python3.14
 
 # Analyzer binaries from the Wolfi rootfs; venv and /data from pybuild
 COPY --from=pybuild /rootfs/ /
