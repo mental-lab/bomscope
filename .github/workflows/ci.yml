@@ -46,7 +46,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Generate SBOM (syft)
-        uses: anchore/sbom-action@v0.19.0
+        uses: anchore/sbom-action@v0.24.2
         with:
           image: bomscope-web:latest
           artifact-name: bomscope-sbom.spdx.json
