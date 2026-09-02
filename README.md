@@ -31,7 +31,7 @@ there is no telemetry, and there is nothing to sign up for.
 Prerequisites: Docker + Docker Compose. That's it.
 
 ```bash
-git clone https://github.com/bomscope-dev/bomscope.git
+git clone https://github.com/mental-lab/bomscope.git
 cd bomscope
 docker compose up -d
 ```
