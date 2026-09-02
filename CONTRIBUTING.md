@@ -5,7 +5,7 @@ Thanks for helping make supply-chain intelligence accessible. A few conventions:
 ## Getting started
 
 ```bash
-git clone https://github.com/bomscope-dev/bomscope.git
+git clone https://github.com/mental-lab/bomscope.git
 cd bomscope
 docker compose up -d
 ```

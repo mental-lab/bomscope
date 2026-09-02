@@ -27,7 +27,7 @@ bomscope = "main:cli"
 
 [project.urls]
 Homepage = "https://bomscope.dev"
-Repository = "https://github.com/bomscope-dev/bomscope"
+Repository = "https://github.com/mental-lab/bomscope"
 
 [tool.setuptools]
 packages = ["bomscope"]
