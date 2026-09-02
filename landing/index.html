@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bomscope — see everything your org depends on</title>
+<meta name="description" content="bomscope scans every repo in your GitHub org, GitLab group, or Azure DevOps project and turns dependency inventory into one dashboard: EOL runtimes, risky base images, stale packages, copyleft exposure, CVE counts. Open source, self-hosted, no vendor lock.">
+<style>
+:root {
+  --bg: #0a0e14; --bg-panel: #10151e; --border: #1e2632;
+  --text: #d7dce2; --text-dim: #8a93a3; --text-faint: #5a6272;
+  --accent: #7aa2f7; --green: #9ece6a; --red: #f7768e; --yellow: #e0af68;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.65; }
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+code, pre { font-family: var(--mono); }
+a { color: var(--accent); text-decoration: none; }
+
+/* top bar */
+.topbar { border-bottom: 1px solid var(--border); padding: 18px 0; }
+.topbar .wrap { display: flex; justify-content: space-between; align-items: baseline; }
+.brand { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.brand img { width: 28px; height: 28px; }
+.brand span { color: var(--accent); }
+.topbar nav a { margin-left: 24px; font-size: 14px; color: var(--text-dim); }
+.topbar nav a:hover { color: var(--text); }
+
+/* hero */
+.hero { padding: 96px 0 64px; }
+.hero h1 { font-size: 44px; line-height: 1.15; letter-spacing: -0.02em; max-width: 720px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .sub { margin-top: 20px; font-size: 18px; color: var(--text-dim); max-width: 640px; }
+.hero .cta { margin-top: 36px; display: flex; gap: 16px; align-items: center; }
+.btn { display: inline-block; padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--accent); color: #0a0e14; }
+.btn.primary:hover { background: #9bbdfd; }
+.btn.ghost { border: 1px solid var(--border); color: var(--text); }
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.hero .install { margin-top: 40px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; font-family: var(--mono); font-size: 14px; color: var(--text-dim); overflow-x: auto; }
+.hero .install .prompt { color: var(--accent); user-select: none; }
+
+/* sections */
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+section h2 { font-size: 28px; letter-spacing: -0.01em; margin-bottom: 8px; }
+section .lead { color: var(--text-dim); font-size: 16px; max-width: 680px; margin-bottom: 40px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 40px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+.feature h3 { font-size: 16px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
+.feature p { color: var(--text-dim); font-size: 15px; }
+.feature code { background: var(--bg-panel); padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+
+/* steps */
+.steps { counter-reset: step; }
+.step { display: flex; gap: 20px; margin-bottom: 32px; }
+.step .n { font-family: var(--mono); color: var(--accent); font-size: 14px; padding-top: 3px; min-width: 32px; }
+.step h4 { font-size: 16px; margin-bottom: 4px; }
+.step p { color: var(--text-dim); font-size: 15px; }
+
+/* snip */
+.snip { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; font-family: var(--mono); font-size: 13.5px; color: var(--text-dim); overflow-x: auto; margin-top: 16px; }
+.snip .c { color: var(--text-faint); }
+
+/* footer */
+footer { border-top: 1px solid var(--border); padding: 32px 0 48px; margin-top: 40px; color: var(--text-faint); font-size: 14px; }
+footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand"><img src="logo.svg" alt="bomscope logo">bom<span>scope</span></span>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/bomscope-dev/bomscope">GitHub</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+<section class="hero" style="border-top: none;">
+  <h1>Your org's dependencies, licenses, and container images. <em>One dashboard.</em></h1>
+  <p class="sub">
+    bomscope scans every repository in your GitHub org, GitLab group, or Azure DevOps project
+    and shows you what you're running on: end-of-life runtimes, risky base images, stale packages,
+    copyleft exposure, and CVE counts — in one place you host yourself.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Get started</a>
+    <a class="btn ghost" href="https://github.com/bomscope-dev/bomscope">View on GitHub</a>
+  </div>
+  <div class="install"><span class="prompt">$</span> git clone https://github.com/bomscope-dev/bomscope.git &amp;&amp; cd bomscope<br><span class="prompt">$</span> docker compose up -d<br><span class="prompt">$</span> open http://localhost:8000   <span style="color: var(--text-faint)"># paste your token in Settings, done</span></div>
+</section>
+
+<section id="how">
+  <h2>Supply-chain intelligence, not another scanner</h2>
+  <p class="lead">Scanners flood you with findings. bomscope answers the questions a platform team actually asks.</p>
+  <div class="grid">
+    <div class="feature">
+      <h3>Who's exposed, ranked</h3>
+      <p>Insights rank your whole org by what matters: EOL software, critical CVEs, risky and unpinned base images, stale dependencies, copyleft licenses. Every row links to the repos behind it.</p>
+    </div>
+    <div class="feature">
+      <h3>Full dependency inventory, searchable</h3>
+      <p>Every package across every repo — npm, pip, Maven, Go, and more via syft SBOMs. Search "who uses lodash" and get the answer in one query, with versions and staleness.</p>
+    </div>
+    <div class="feature">
+      <h3>Base-image posture you can steer</h3>
+      <p>Define your trusted registries (hardened-image vendors, your internal mirror) in Settings — saving triggers a background rescan, and adoption is measured and trended over time.</p>
+    </div>
+    <div class="feature">
+      <h3>Incremental and quiet</h3>
+      <p>Repos whose HEAD hasn't moved reuse prior results. The 10th scan costs about what the first one did. Scans run nightly by default from a built-in scheduler.</p>
+    </div>
+    <div class="feature">
+      <h3>Your infra, your data, no keys to us</h3>
+      <p>Two containers: the app and Postgres. The token you paste stays in your database, never leaves your network. No telemetry, no sign-up, no SaaS.</p>
+    </div>
+    <div class="feature">
+      <h3>Batteries included</h3>
+      <p><code>docker compose up -d</code> is the whole install. Settings are configured in the browser — no .env editing, no YAML schema to learn, no operator to deploy.</p>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <h2>Five minutes to a running dashboard</h2>
+  <p class="lead">One compose stack. One token. One click.</p>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><div>
+      <h4>Clone and start</h4>
+      <p>Docker and Git are the only prerequisites. Postgres ride along in the same compose file.</p>
+      <div class="snip">git clone https://github.com/bomscope-dev/bomscope.git
+cd bomscope
+docker compose up -d</div>
+    </div></div>
+    <div class="step"><div class="n">02</div><div>
+      <h4>Connect your platform</h4>
+      <p>Open <code>http://localhost:8000</code>, go to Settings, pick GitHub / GitLab / Azure DevOps, and paste a read-only token. Nothing to edit on disk.</p>
+    </div></div>
+    <div class="step"><div class="n">03</div><div>
+      <h4>Run your first scan</h4>
+      <p>Hit "Run scan now" — or scope to a few repos first to pilot. Progress streams live in the Settings console. From then on, bomscope rescans on a schedule.</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Automate if you want to</h2>
+  <p class="lead">Everything the dashboard does is also a CLI and an API.</p>
+  <div class="snip"><span class="c"># one-shot scan from CI, results to Postgres</span>
+docker compose --profile analyze run --rm analyzer \
+  -p github -s https://github.com -o your-org -O output/analysis.json
+
+<span class="c"># options</span>
+--trusted-registries "cgr.dev,registry.example.com"  <span class="c"># what counts as a blessed image</span>
+--no-incremental                                     <span class="c"># force full rescan</span>
+--vulns --no-freshness                               <span class="c"># trade speed for depth either way</span></div>
+</section>
+
+<section>
+  <h2>Open source, Apache 2.0 — and enterprise-ready</h2>
+  <p class="lead">Open core, like GitLab and Kilocode. Everything you see here is free forever. Enterprise governance — SSO, RBAC, audit logs, policy controls — ships later under a commercial license. The core never shrinks.</p>
+  <div class="grid" style="margin-top:24px;">
+    <div class="feature">
+      <h3>Community — free forever</h3>
+      <p>Full analyzer, dashboard, insights, trends, API, scheduler, self-managed install. Small teams get the complete product, no artificial limits.</p>
+    </div>
+    <div class="feature">
+      <h3>Enterprise — coming</h3>
+      <p>SSO/SAML, role-based access, audit logging, policy engine, multi-org tenancy, compliance exports, air-gapped installs, priority support.</p>
+    </div>
+  </div>
+  <div class="cta" style="display:flex;gap:16px;margin-top:32px;">
+    <a class="btn primary" href="https://github.com/bomscope-dev/bomscope">Star on GitHub</a>
+    <a class="btn ghost" href="https://github.com/bomscope-dev/bomscope/tree/main/ee">Enterprise direction</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    bomscope — supply chain intelligence · <a href="https://github.com/bomscope-dev/bomscope">GitHub</a> · Apache-2.0 core · Enterprise in ee/
+  </div>
+</footer>
+
+</body>
+</html>

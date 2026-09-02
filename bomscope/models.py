@@ -12,6 +12,7 @@ class RepositoryInfo:
     project_id: Optional[str] = None
     language: Optional[str] = None
     description: Optional[str] = None
+    head_sha: Optional[str] = None
 
 
 @dataclass
@@ -31,8 +32,10 @@ class ProjectAnalysis:
     manifests: List[DependencyInfo]
     total_dependencies: int
     collection_timestamp: str
-    note: str = "Coverage analysis performed server-side by ecosystems-insights"
     dockerfile_adoption: Optional[Dict[str, Any]] = None
+    vulnerability_summary: Optional[Dict[str, Any]] = None
+    license_summary: Optional[Dict[str, Any]] = None
+    eol_summary: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -56,7 +59,6 @@ class OrganizationAnalysis:
     projects: List[ProjectAnalysis]
     ecosystems_breakdown: Dict[str, Dict[str, Any]]
     skipped_projects: List[SkippedRepository] = None
-    coverage_analysis: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         if self.skipped_projects is None:

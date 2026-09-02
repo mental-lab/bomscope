@@ -7,8 +7,8 @@ A tool for analyzing dependency manifests across multiple platforms:
 - Organization-wide and individual repository analysis
 """
 
-__version__ = "1.0.0"
-__author__ = "Chainguard"
+__version__ = "0.2.0"
+__author__ = ""
 __description__ = "Multi-platform repository dependency analyzer"
 
 # Core data models

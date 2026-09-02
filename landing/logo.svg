@@ -1,0 +1,21 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="116" height="116" rx="26" fill="#0b1020" stroke="url(#g)" stroke-width="3"/>
+  <!-- radar rings -->
+  <circle cx="64" cy="64" r="38" stroke="url(#g)" stroke-opacity="0.35" stroke-width="2" fill="none"/>
+  <circle cx="64" cy="64" r="24" stroke="url(#g)" stroke-opacity="0.6" stroke-width="2" fill="none"/>
+  <!-- BOM package node -->
+  <circle cx="64" cy="64" r="7" fill="url(#g)"/>
+  <!-- scope sweep -->
+  <path d="M64 64 L103 37" stroke="url(#g)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64 26 A38 38 0 0 1 102 64 L64 64 Z" fill="url(#g)" fill-opacity="0.12"/>
+  <!-- dependency nodes found -->
+  <circle cx="90" cy="82" r="4" fill="#34d399"/>
+  <circle cx="40" cy="88" r="4" fill="#22d3ee" fill-opacity="0.9"/>
+  <circle cx="88" cy="40" r="4" fill="#f87171"/>
+</svg>

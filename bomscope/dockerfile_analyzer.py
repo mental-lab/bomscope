@@ -1,7 +1,9 @@
 """
-Dockerfile analyzer for detecting Chainguard image adoption.
+Dockerfile analyzer for detecting trusted base-image adoption.
 
-Scans Dockerfiles to identify base images and detect Chainguard usage.
+Scans Dockerfiles to identify base images, detect usage of trusted
+registries (user-configured), and flag floating/unpinned base tags.
+Version-level EOL status lives in eol_checker (endoflife.date).
 """
 
 import logging
@@ -11,17 +13,29 @@ from typing import Dict, List, Optional
 
 
 class DockerfileAnalyzer:
-    """Analyzes Dockerfiles to detect Chainguard image adoption."""
-    
-    CHAINGUARD_PATTERNS = [
-        r'cgr\.dev',
-        r'chainguard',
-        r'images\.chainguard\.dev'
-    ]
-    
-    def __init__(self):
-        """Initialize Dockerfile analyzer."""
+    """Analyzes Dockerfiles to detect trusted base-image adoption.
+
+    EOL determination is the job of eol_checker (endoflife.date, always on) —
+    a static regex list here would silently drift out of date. The risky-image
+    heuristics below only cover what the EOL API cannot express: floating
+    versions (`:latest`, untagged).
+    """
+
+    def __init__(self, trusted_registries: Optional[List[str]] = None):
+        """Initialize Dockerfile analyzer.
+
+        Args:
+            trusted_registries: Registry/repo patterns treated as trusted
+                sources (regex). Images matching these are counted as
+                'adopted' and exempt from risky-image heuristics.
+                No vendor is trusted by default — configure via
+                --trusted-registries or TRUSTED_REGISTRIES.
+        """
         self.logger = logging.getLogger(__name__)
+        self.trusted_patterns = [
+            re.compile(p, re.IGNORECASE)
+            for p in (trusted_registries or [])
+        ]
     
     def analyze_repository(self, repo_path: str) -> Dict[str, any]:
         """
@@ -34,17 +48,18 @@ class DockerfileAnalyzer:
             Dictionary with Dockerfile analysis results:
             {
                 'dockerfiles_found': 3,
-                'chainguard_images': ['python:latest', 'node:20'],
+                'trusted_images': ['cgr.dev/example/python:latest'],
                 'other_images': ['ubuntu:22.04'],
                 'adoption_detected': True
             }
         """
         results = {
             'dockerfiles_found': 0,
-            'chainguard_images': [],
+            'trusted_images': [],
             'other_images': [],
+            'risky_images': [],  # List of {image, file, reason}
             'adoption_detected': False,
-            'dockerfiles': []  # List of {path, chainguard_images, other_images}
+            'dockerfiles': []  # List of {path, trusted_images, other_images, risky_images}
         }
         
         # Find all Dockerfiles
@@ -62,23 +77,34 @@ class DockerfileAnalyzer:
             
             dockerfile_info = {
                 'path': str(dockerfile_path.relative_to(repo)),
-                'chainguard_images': [],
-                'other_images': []
+                'trusted_images': [],
+                'other_images': [],
+                'risky_images': []
             }
-            
+
             for image in images:
-                if self._is_chainguard_image(image):
-                    results['chainguard_images'].append(image)
-                    dockerfile_info['chainguard_images'].append(image)
+                if self._is_trusted_image(image):
+                    results['trusted_images'].append(image)
+                    dockerfile_info['trusted_images'].append(image)
                     results['adoption_detected'] = True
                 else:
                     results['other_images'].append(image)
                     dockerfile_info['other_images'].append(image)
+
+                risk = self._assess_image_risk(image)
+                if risk:
+                    entry = {
+                        'image': image,
+                        'file': dockerfile_info['path'],
+                        'reason': risk
+                    }
+                    results['risky_images'].append(entry)
+                    dockerfile_info['risky_images'].append(entry)
             
             results['dockerfiles'].append(dockerfile_info)
         
         # Remove duplicates from summary lists
-        results['chainguard_images'] = list(set(results['chainguard_images']))
+        results['trusted_images'] = list(set(results['trusted_images']))
         results['other_images'] = list(set(results['other_images']))
         
         return results
@@ -132,36 +158,58 @@ class DockerfileAnalyzer:
             # FROM --platform=linux/amd64 image:tag
             from_pattern = r'^\s*FROM\s+(?:--platform=[^\s]+\s+)?([^\s]+)'
             
+            stage_names = set()
             for line in content.split('\n'):
                 match = re.match(from_pattern, line, re.IGNORECASE)
                 if match:
                     image = match.group(1)
                     # Skip build stages (they reference previous stages)
-                    if not image.startswith('$') and image.lower() != 'scratch':
+                    if (not image.startswith('$') and image.lower() != 'scratch'
+                            and image.lower() not in stage_names):
                         images.append(image)
+                    # Track stage aliases so multi-stage FROM <stage> refs are skipped
+                    alias_match = re.match(r'.*?[ \t]+AS[ \t]+([^\s,;]+)', line, re.IGNORECASE)
+                    if alias_match:
+                        stage_names.add(alias_match.group(1).lower())
         
         except Exception as e:
             self.logger.debug(f"Failed to parse {dockerfile_path}: {e}")
         
         return images
     
-    def _is_chainguard_image(self, image: str) -> bool:
+    def _assess_image_risk(self, image: str) -> Optional[str]:
         """
-        Check if image is from Chainguard.
-        
+        Assess a base image for reproducibility risk.
+
+        Flags: untagged images and floating :latest tags. Version-level EOL
+        is handled separately by eol_checker (endoflife.date).
+        Trusted-registry images are exempt (assumed continuously rebuilt).
+
         Args:
-            image: Image name (e.g., 'cgr.dev/chainguard/python:latest')
-            
+            image: Image reference (e.g., 'python:3.9', 'ubuntu:latest', 'nginx')
+
         Returns:
-            True if Chainguard image, False otherwise
+            Reason string if risky, None otherwise
         """
-        image_lower = image.lower()
-        
-        for pattern in self.CHAINGUARD_PATTERNS:
-            if re.search(pattern, image_lower):
-                return True
-        
-        return False
+        if self._is_trusted_image(image):
+            return None
+
+        # Strip registry prefix and digest for pattern matching
+        ref = image.split('@')[0]
+        # e.g. 'docker.io/library/python:3.9' -> 'python:3.9'
+        name = ref.split('/')[-1].lower()
+
+        # Untagged or floating :latest
+        if ':' not in name:
+            return 'Untagged image — implicitly floats to :latest, builds are not reproducible'
+        if name.endswith(':latest'):
+            return ':latest tag — version floats, builds are not reproducible'
+
+        return None
+
+    def _is_trusted_image(self, image: str) -> bool:
+        """Check if image comes from a configured trusted source."""
+        return any(p.search(image) for p in self.trusted_patterns)
     
     def get_adoption_summary(self, results: Dict) -> str:
         """
@@ -177,11 +225,11 @@ class DockerfileAnalyzer:
             return "No Dockerfiles found"
         
         if results['adoption_detected']:
-            cg_count = len(results['chainguard_images'])
+            trusted_count = len(results['trusted_images'])
             other_count = len(results['other_images'])
-            total = cg_count + other_count
-            percentage = (cg_count / total * 100) if total > 0 else 0
-            
-            return f"{cg_count}/{total} images using Chainguard ({percentage:.1f}%)"
+            total = trusted_count + other_count
+            percentage = (trusted_count / total * 100) if total > 0 else 0
+
+            return f"{trusted_count}/{total} images from trusted registries ({percentage:.1f}%)"
         else:
-            return f"0/{len(results['other_images'])} images using Chainguard"
+            return f"0/{len(results['other_images'])} images from trusted registries"

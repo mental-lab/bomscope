@@ -19,9 +19,12 @@ from typing import Any, Dict, List, Optional
 
 from .models import OrganizationAnalysis, ProjectAnalysis, RepositoryInfo, DependencyInfo, SkippedRepository
 from .platform_analyzers import get_analyzer
-from .git_cloner import GitCloner
+from .git_cloner import GitCloner, RepoCache
 from .syft_analyzer import SyftAnalyzer
 from .dockerfile_analyzer import DockerfileAnalyzer
+from .eol_checker import EOLChecker
+from .freshness_checker import FreshnessChecker
+from .vulnerability_analyzer import VulnerabilityAnalyzer
 
 
 class RepositoryAnalyzer:
@@ -43,12 +46,26 @@ class RepositoryAnalyzer:
     SUPPORTED_PLATFORMS = ['gitlab', 'github', 'ado']
     SUPPORTED_ECOSYSTEMS = ['python', 'java', 'javascript']
 
-    def __init__(self, platform: str, url: str, token: str, max_workers: int = 4):
-        """Initialize analyzer with platform credentials."""
+    def __init__(self, platform: str, url: str, token: str, max_workers: int = 4,
+                 enable_vulns: bool = False, enable_freshness: bool = False,
+                 trusted_registries: Optional[List[str]] = None,
+                 cache_dir: Optional[str] = None):
+        """Initialize analyzer with platform credentials.
+
+        Args:
+            enable_vulns: Run grype vulnerability scans per repo (default: True)
+            enable_freshness: Check registry for latest versions (default: False,
+                              adds one request per unique package)
+            cache_dir: Persistent git mirror cache directory; re-scans fetch
+                       deltas instead of full-cloning. None disables caching.
+        """
         self.platform = platform.lower()
         self.url = url
         self.token = token
         self.max_workers = max_workers
+        self.enable_vulns = enable_vulns
+        self.enable_freshness = enable_freshness
+        self.previous_projects: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger(__name__)
 
         # Validate inputs early
@@ -62,16 +79,28 @@ class RepositoryAnalyzer:
         self._analyzer = get_analyzer(self.platform, self.url, self.token)
         
         # Create git cloner, syft analyzer, and dockerfile analyzer
-        self.git_cloner = GitCloner(token=self.token)
+        self.git_cloner = GitCloner(
+            token=self.token,
+            cache=RepoCache(cache_dir, token=self.token) if cache_dir else None,
+        )
         self.syft_analyzer = SyftAnalyzer()
-        self.dockerfile_analyzer = DockerfileAnalyzer()
-        
+        self.dockerfile_analyzer = DockerfileAnalyzer(trusted_registries=trusted_registries)
+        self.freshness_checker = FreshnessChecker() if enable_freshness else None
+        self.eol_checker = EOLChecker()
+        self.vulnerability_analyzer = VulnerabilityAnalyzer()
         # Check dependencies
         if not self.git_cloner.check_git_available():
             raise RuntimeError("git is not installed or not available in PATH")
-        
+
         if not self.syft_analyzer.check_syft_available():
             raise RuntimeError("syft is not installed or not available in PATH. Install from: https://github.com/anchore/syft")
+
+        if self.enable_vulns and not self.vulnerability_analyzer.check_grype_available():
+            self.logger.warning(
+                "grype is not installed; skipping vulnerability scans. "
+                "Install from: https://github.com/anchore/grype"
+            )
+            self.enable_vulns = False
 
     def analyze_organization(self, organization: str, branch: Optional[str] = None) -> OrganizationAnalysis:
         """Analyze all repositories in an organization for dependencies.
@@ -117,7 +146,27 @@ class RepositoryAnalyzer:
 
         # Analyze it
         return self._analyze_repositories(repository, [repo_info], branch=branch)
-    
+
+    def analyze_scope(self, organization: str, repositories: List[str],
+                      branch: Optional[str] = None) -> OrganizationAnalysis:
+        """Analyze a specific list of repositories in parallel, reporting them
+        under the given organization name.
+
+        Args:
+            organization: Organization name to attribute results to
+            repositories: Repo identifiers (e.g. 'org/repo')
+        """
+        self.logger.info(
+            "Analyzing %d repositories in '%s' on %s (workers=%d)",
+            len(repositories), organization, self.platform, self.max_workers)
+        infos = []
+        for name in repositories:
+            try:
+                infos.append(self._analyzer.get_single_repository(name))
+            except Exception as e:
+                self.logger.error("Could not resolve repository %s: %s", name, e)
+        return self._analyze_repositories(organization, infos, branch=branch)
+
     def _analyze_repositories(
         self, org_name: str, repositories: List[RepositoryInfo], branch: Optional[str] = None
     ) -> OrganizationAnalysis:
@@ -132,6 +181,10 @@ class RepositoryAnalyzer:
             projects=[],
             ecosystems_breakdown={},
         )
+
+        # Ensure grype vulnerability DB is ready before parallel workers race on it
+        if self.enable_vulns:
+            self.vulnerability_analyzer.ensure_db_ready()
 
         # Analyze repositories in parallel for speed
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -195,9 +248,17 @@ class RepositoryAnalyzer:
         """Analyze a single repository using git clone + syft."""
         clone_path = None
         try:
+            # Incremental: skip full analysis if remote HEAD unchanged
+            target_branch = branch if branch else repo_info.default_branch
+            remote_head = self.git_cloner.get_remote_head(repo_info.url, target_branch)
+            if remote_head:
+                repo_info.head_sha = remote_head
+                reused = self._try_reuse_previous(repo_info, remote_head)
+                if reused is not None:
+                    return reused
+
             # Clone repository
             # Use specified branch if provided, otherwise use repository's default branch
-            target_branch = branch if branch else repo_info.default_branch
             self.logger.debug(f"Cloning {repo_info.name} (branch: {target_branch})...")
             clone_path = self.git_cloner.shallow_clone(
                 repo_info.url,
@@ -216,13 +277,47 @@ class RepositoryAnalyzer:
                 self.logger.warning(f"Syft analysis failed for {repo_info.name}")
                 return None
             
-            # Analyze Dockerfiles for Chainguard image adoption
+            # Analyze Dockerfiles for trusted image adoption
             self.logger.debug(f"Analyzing Dockerfiles in {repo_info.name}...")
             dockerfile_results = self.dockerfile_analyzer.analyze_repository(clone_path)
-            
+
             # Parse SBOM into our dependency format (with Java enhancement)
             dependencies_by_ecosystem = self.syft_analyzer.parse_sbom_to_dependencies(sbom_data, repo_path=clone_path)
-            
+
+            # License posture from the SBOM
+            license_summary = self._extract_license_summary(sbom_data)
+
+            # Vulnerability scan (grype) — opt-in via enable_vulns
+            vulnerability_summary = None
+            if self.enable_vulns:
+                self.logger.debug(f"Running grype on {repo_info.name}...")
+                vulnerability_summary = self.vulnerability_analyzer.scan_repository(clone_path)
+
+            # Freshness check against upstream registries — opt-in via enable_freshness
+            if self.enable_freshness:
+                self.logger.debug(f"Checking dependency freshness for {repo_info.name}...")
+                dependencies_by_ecosystem = self.freshness_checker.check_dependencies(
+                    dependencies_by_ecosystem
+                )
+
+            # EOL status via endoflife.date — cheap API calls, always on
+            self.logger.debug(f"Checking EOL status for {repo_info.name}...")
+            eol_images = []
+            all_images = [
+                img
+                for df in dockerfile_results.get("dockerfiles", [])
+                for img in (df.get("trusted_images", []) + df.get("other_images", []))
+            ]
+            if all_images:
+                eol_images = self.eol_checker.check_base_images(all_images)
+            eol_deps = self.eol_checker.check_dependencies(dependencies_by_ecosystem)
+            eol_summary = {
+                "eol_count": sum(1 for f in eol_images + eol_deps if f["status"] == "eol"),
+                "approaching_count": sum(1 for f in eol_images + eol_deps if f["status"] == "approaching"),
+                "images": eol_images,
+                "dependencies": eol_deps,
+            }
+
             # Check if we found anything useful
             has_dependencies = dependencies_by_ecosystem and any(len(deps) > 0 for deps in dependencies_by_ecosystem.values())
             has_dockerfiles = dockerfile_results['dockerfiles_found'] > 0
@@ -248,19 +343,32 @@ class RepositoryAnalyzer:
                         file_path=', '.join(sorted(file_paths)[:3]) if file_paths else f'{ecosystem} dependencies',
                         file_type='sbom',
                         ecosystem=ecosystem,
-                        dependencies=[{'name': d['name'], 'version': d['version']} for d in deps],
+                        dependencies=[
+                            {
+                                'name': d['name'],
+                                'version': d['version'],
+                                **({'latest_version': d['latest_version'],
+                                    'versions_behind': d['versions_behind'],
+                                    'freshness': d['freshness']}
+                                   if 'freshness' in d else {})
+                            }
+                            for d in deps
+                        ],
                         build_tool='syft'
                     )
                     manifests.append(manifest)
                     total_deps += len(deps)
-            
-            # Create project analysis with Dockerfile adoption info
+
+            # Create project analysis with Dockerfile adoption, vuln, and license info
             project = ProjectAnalysis(
                 repository=repo_info,
                 manifests=manifests,
                 total_dependencies=total_deps,
                 collection_timestamp=datetime.utcnow().isoformat(),
-                dockerfile_adoption=dockerfile_results if dockerfile_results['dockerfiles_found'] > 0 else None
+                dockerfile_adoption=dockerfile_results if dockerfile_results['dockerfiles_found'] > 0 else None,
+                vulnerability_summary=vulnerability_summary,
+                license_summary=license_summary,
+                eol_summary=eol_summary,
             )
             
             return project
@@ -273,6 +381,107 @@ class RepositoryAnalyzer:
             if clone_path:
                 self.git_cloner.cleanup(clone_path)
     
+    def _repo_key(self, url: str) -> str:
+        """Normalize a repo URL to host/owner/repo (matches database._repo_full_name)."""
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        path = parsed.path.rstrip('/')
+        if path.endswith('.git'):
+            path = path[:-4]
+        return f"{parsed.netloc}{path}".lower()
+
+    def _try_reuse_previous(
+        self, repo_info: RepositoryInfo, remote_head: str
+    ) -> Optional[ProjectAnalysis]:
+        """Return the previous scan's ProjectAnalysis if HEAD is unchanged."""
+        key = self._repo_key(repo_info.url)
+        prev = self.previous_projects.get(key)
+        if not prev or prev.get('head_sha') != remote_head:
+            return None
+
+        project_dict = prev.get('project')
+        if not project_dict:
+            return None
+
+        try:
+            # Reconstruct ProjectAnalysis from the stored raw dict
+            repo_data = dict(project_dict['repository'])
+            repo_data['head_sha'] = remote_head
+            repo = RepositoryInfo(**{k: v for k, v in repo_data.items()
+                                     if k in RepositoryInfo.__dataclass_fields__})
+            manifests = [
+                DependencyInfo(**{k: v for k, v in m.items()
+                                  if k in DependencyInfo.__dataclass_fields__})
+                for m in project_dict.get('manifests', [])
+            ]
+            project = ProjectAnalysis(
+                repository=repo,
+                manifests=manifests,
+                total_dependencies=project_dict.get('total_dependencies', 0),
+                collection_timestamp=datetime.utcnow().isoformat(),
+                dockerfile_adoption=project_dict.get('dockerfile_adoption'),
+                vulnerability_summary=project_dict.get('vulnerability_summary'),
+                license_summary=project_dict.get('license_summary'),
+                eol_summary=project_dict.get('eol_summary'),
+            )
+            self.logger.info(f"{repo_info.name}: unchanged ({remote_head[:8]}), reusing previous results")
+            return project
+        except Exception as e:
+            self.logger.debug(f"Could not reuse previous results for {repo_info.name}: {e}")
+            return None
+
+    def _extract_license_summary(self, sbom_data: Dict) -> Optional[Dict[str, Any]]:
+        """Extract license posture from a syft SBOM.
+
+        Returns counts of copyleft licenses and the full license histogram.
+        """
+        # Strong copyleft only: real redistribution/compliance risk.
+        # Weak copyleft (LGPL/MPL/EPL/CDDL/EUPL) and GPL-with-exception variants
+        # are intentionally not flagged — they're fine as dependencies.
+        STRONG_COPYLEFT = {'GPL', 'AGPL', 'SSPL', 'CC-BY-SA'}
+
+        def _is_strong_copyleft(value: str) -> bool:
+            v = value.upper()
+            if 'EXCEPTION' in v:
+                return False
+            return any(v.startswith(c) for c in STRONG_COPYLEFT)
+
+        artifacts = sbom_data.get('artifacts', [])
+        if not artifacts:
+            return None
+
+        histogram: Dict[str, int] = {}
+        copyleft_packages = []
+        seen = set()
+
+        for artifact in artifacts:
+            licenses = artifact.get('licenses') or []
+            name = artifact.get('name', '')
+            version = artifact.get('version', '')
+            for lic in licenses:
+                value = lic.get('value') or lic.get('spdxExpression') or ''
+                if not value:
+                    continue
+                histogram[value] = histogram.get(value, 0) + 1
+                if _is_strong_copyleft(value) and (name, version, value) not in seen:
+                    seen.add((name, version, value))
+                    copyleft_packages.append({
+                        'name': name,
+                        'version': version,
+                        'license': value,
+                    })
+
+        if not histogram:
+            return None
+
+        return {
+            'histogram': dict(sorted(histogram.items(), key=lambda kv: -kv[1])),
+            'copyleft_count': len(copyleft_packages),
+            'copyleft_packages': sorted(copyleft_packages, key=lambda p: p['name'])[:20],
+            'licensed_packages': sum(histogram.values()),
+            'total_packages': len(artifacts),
+        }
+
     def _calculate_ecosystems_breakdown(self, projects: List[ProjectAnalysis]) -> Dict[str, Dict[str, Any]]:
         """Calculate ecosystems breakdown from projects."""
         ecosystems = {}
@@ -356,7 +565,6 @@ class RepositoryAnalyzer:
                 "total_projects": analysis.total_projects,
                 "analyzed_projects": analysis.analyzed_projects,
                 "total_dependencies": analysis.total_dependencies,
-                "coverage_note": "Coverage percentages calculated server-side by ecosystems-insights"
             },
             "ecosystems": analysis.ecosystems_breakdown,
             "top_dependencies": self._get_top_dependencies(analysis),

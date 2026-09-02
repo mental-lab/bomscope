@@ -1,12 +1,7 @@
 {
-  "name": "ecosystems-evaluate",
-  "version": "1.0.0",
-  "description": "Analyze dependencies across GitLab, GitHub, and Azure DevOps organizations.",
-  "main": "index.js",
-  "directories": {
-    "example": "examples",
-    "test": "tests"
-  },
+  "name": "bomscope",
+  "version": "0.1.0",
+  "description": "Supply-chain intelligence dashboard for bomscope.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -14,23 +9,25 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mental-lab/ecosystems-evaluate.git"
+    "url": "git+https://github.com/bomscope-dev/bomscope.git"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/mental-lab/ecosystems-evaluate/issues"
+    "url": "https://github.com/bomscope-dev/bomscope/issues"
   },
-  "homepage": "https://github.com/mental-lab/ecosystems-evaluate#readme",
+  "homepage": "https://github.com/bomscope-dev/bomscope#readme",
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.3",
+    "@vitejs/plugin-vue": "^6.0.8",
     "vite": "^7.3.0",
-    "vue": "^3.5.26"
+    "vue": "^3.5.42"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
-    "vue-chartjs": "^5.3.3"
+    "vue-chartjs": "^5.3.4",
+    "vue-router": "^4.4.5",
+    "vue": "^3.5.42"
   }
 }

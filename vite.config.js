@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   root: 'viewer',
-  base: '/ecosystems-evaluate/',
+  base: '/',
   build: {
     outDir: '../docs',
     emptyOutDir: true

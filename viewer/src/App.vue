@@ -1,123 +1,86 @@
 <template>
-  <div style="min-height: 100vh; background: #fafafa;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-      <div class="container">
-        <h1 style="margin: 0; font-size: 1.75rem; font-weight: 700;">Ecosystems Analysis</h1>
-        <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.95rem;">Dependency & Container Security Insights</p>
-      </div>
-    </div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <router-link to="/" class="brand">
+        <img class="brand-mark" src="/logo.svg" alt="bomscope" width="24" height="24" />
+        bom<span class="brand-accent">scope</span>
+      </router-link>
 
-    <div class="container">
-      <!-- Upload Zone -->
-      <div v-if="!analysisData" class="upload-zone" @click="$refs.fileInput.click()">
-        <input 
-          ref="fileInput" 
-          type="file" 
-          accept=".json" 
-          @change="handleFileUpload"
-        >
-        <div>
-          <h2>📁 Upload Analysis File</h2>
-          <p style="margin-top: 0.5rem; color: #6b7280;">
-            Click to select or drag and drop your analysis.json file
-          </p>
-        </div>
+      <div class="org-select" v-if="org">
+        <span class="org-select-label">Organization</span>
+        <span class="org-select-value mono">{{ org }}</span>
       </div>
 
-      <!-- Analysis View -->
-      <div v-else>
-        <!-- Tabs -->
-        <div style="background: white; border-radius: 12px; padding: 0.5rem; margin: 2rem 0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); display: inline-flex; gap: 0.5rem;">
-          <button 
-            v-for="tab in tabs" 
-            :key="tab"
-            @click="activeTab = tab"
-            :style="`
-              padding: 0.75rem 1.5rem;
-              border: none;
-              border-radius: 8px;
-              background: ${activeTab === tab ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent'};
-              color: ${activeTab === tab ? 'white' : '#6b7280'};
-              font-weight: ${activeTab === tab ? '600' : '500'};
-              cursor: pointer;
-              transition: all 0.2s;
-              font-size: 0.95rem;
-            `"
-          >
-            {{ tab }}
-          </button>
-        </div>
+      <nav class="side-nav">
+        <span class="nav-section">Analyze</span>
+        <router-link to="/" exact-active-class="active" class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="5" height="5" rx="1"/><rect x="9.5" y="1.5" width="5" height="5" rx="1"/><rect x="1.5" y="9.5" width="5" height="5" rx="1"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/></svg>
+          Overview
+        </router-link>
+        <router-link to="/repositories" active-class="active" class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5L8 1.5l6 3v7l-6 3-6-3v-7z"/><path d="M2 4.5l6 3 6-3M8 7.5v7"/></svg>
+          Repositories
+        </router-link>
+        <router-link to="/dependencies" active-class="active" class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="3" r="1.75"/><circle cx="13" cy="3" r="1.75"/><circle cx="8" cy="13" r="1.75"/><path d="M4.2 4.4l3 6.8M11.8 4.4l-3 6.8M4.75 3h6.5"/></svg>
+          Dependencies
+        </router-link>
 
-        <!-- Tab Content -->
-        <Overview v-if="activeTab === 'Overview'" :data="analysisData" />
-        <ContainerImages v-if="activeTab === 'Container Images'" :data="analysisData" />
-        <Dependencies v-if="activeTab === 'Dependencies'" :data="analysisData" />
-        <Projects v-if="activeTab === 'Projects'" :data="analysisData" />
-        <Stats v-if="activeTab === 'Stats'" :data="analysisData" />
+        <span class="nav-section">Configure</span>
+        <router-link v-if="auth.role !== 'viewer'" to="/settings" active-class="active" class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg>
+          Settings
+        </router-link>
+      </nav>
+
+      <div v-if="auth.token" class="sidebar-auth">
+        <span class="badge accent mono">{{ auth.role }}</span>
+        <a class="nav-item" @click="logout" style="cursor: pointer">Sign out</a>
       </div>
-    </div>
+
+      <div class="sidebar-footer mono">bomscope &middot; self-managed</div>
+    </aside>
+    <main class="main">
+      <router-view />
+    </main>
   </div>
 </template>
 
 <script>
-import { ref } from 'vue'
-import Overview from './components/Overview.vue'
-import Stats from './components/Stats.vue'
-import Projects from './components/Projects.vue'
-import Dependencies from './components/Dependencies.vue'
-import ContainerImages from './components/ContainerImages.vue'
+import { ref, provide } from 'vue'
+import { apiFetch, auth, clearToken } from './api'
+
+const DEFAULT_ADOPTION = {
+  label: 'Trusted',
+  patterns: ''
+}
 
 export default {
   name: 'App',
-  components: {
-    Overview,
-    Stats,
-    Projects,
-    Dependencies,
-    ContainerImages
-  },
   setup() {
-    const analysisData = ref(null)
-    const activeTab = ref('Overview')
-    const tabs = ['Overview', 'Container Images', 'Dependencies', 'Projects', 'Stats']
+    const org = ref(null)
+    const adoption = ref(DEFAULT_ADOPTION)
 
-    // Try to auto-load analysis.json from public directory
-    const loadDefaultAnalysis = async () => {
-      try {
-        const response = await fetch('/ecosystems-evaluate/analysis.json')
-        if (response.ok) {
-          analysisData.value = await response.json()
-        }
-      } catch (error) {
-        // No default analysis file, user will need to upload
-        console.log('No default analysis file found, waiting for upload')
-      }
+    // Adoption config comes from the server (Settings page writes to
+    // /api/config) — shared across browsers, not localStorage.
+    apiFetch('/api/config')
+      .then(r => r.ok ? r.json() : null)
+      .then(cfg => {
+        if (!cfg) return
+        if (cfg.organization) org.value = cfg.organization
+        if (cfg.adoption) adoption.value = cfg.adoption
+      })
+      .catch(() => {})
+
+    provide('org', org)
+    provide('adoption', adoption)
+
+    const logout = () => {
+      clearToken()
+      window.location.href = '/login'
     }
 
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0]
-      if (!file) return
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          analysisData.value = JSON.parse(e.target.result)
-        } catch (error) {
-          alert('Error parsing JSON file: ' + error.message)
-        }
-      }
-      reader.readAsText(file)
-    }
-
-    // Load default analysis on mount
-    loadDefaultAnalysis()
-
-    return {
-      analysisData,
-      activeTab,
-      tabs,
-      handleFileUpload
-    }
+    return { org, auth, logout }
   }
 }
 </script>

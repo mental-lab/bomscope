@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bomscope"
+version = "0.2.0"
+description = "Supply-chain intelligence for your org's code — dependency inventory, EOL status, and security posture in one self-hosted dashboard."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "python-dotenv",
+    "click",
+    "packaging",
+    "sqlalchemy",
+    "pg8000",
+]
+
+[project.optional-dependencies]
+# API/web service deps (needed in the container, optional for pure CLI use)
+web = ["fastapi", "uvicorn", "cryptography"]
+
+[project.scripts]
+bomscope = "main:cli"
+
+[project.urls]
+Homepage = "https://bomscope.dev"
+Repository = "https://github.com/bomscope-dev/bomscope"
+
+[tool.setuptools]
+packages = ["bomscope"]
+py-modules = ["main"]
