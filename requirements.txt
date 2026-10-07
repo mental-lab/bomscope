@@ -1,7 +1,7 @@
 # Pinned for reproducible builds and meaningful pip-audit results.
 # Dependabot bumps these; see .github/dependabot.yml.
 requests==2.34.2
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 click==8.5.0
 packaging==26.3
 sqlalchemy==2.0.52
