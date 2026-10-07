@@ -6,7 +6,7 @@ click==8.5.0
 packaging==26.3
 sqlalchemy==2.0.52
 pg8000==1.31.5
-fastapi==0.141.1
+fastapi==0.142.2
 uvicorn==0.52.4
 cryptography==50.0.1
 pytest==9.0.3
